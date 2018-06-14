@@ -51,7 +51,7 @@ class VidArchiverApp(QMainWindow, VidArchiverUI.Ui_MainWindow):
         self.setupUi(self)  # This is defined in VidArchiverUI.py file automatically
                             # It sets up layout and widgets that are defined
         # Instanz-Variablen
-        self.vpath   = "Y:\\video\\"
+        self.vpath   = "Y:\\video"
         self.app = app
         self.worker = None
 
@@ -73,24 +73,37 @@ class VidArchiverApp(QMainWindow, VidArchiverUI.Ui_MainWindow):
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-
         self.tbl_film.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tbl_film.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        self.tbl_vorhFilm.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.tbl_vorhFilm.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        header = self.tbl_vorhFilm.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
         self.cb_quelle.addItems(self.prepPfadeLaden(self.le_vidArchPfad.text()))        
         if self.cb_quelle.count() > 0:
             self.filmliste = self.filmeLaden(self.le_vidArchPfad.text() + os.path.sep + str(self.cb_quelle.currentText()))
+            self.tbl_film.setCurrentCell(0,0)
         else:
             self.filmliste = []
 
         self.lst_vidPfad.addItems(self.zielPfadeLaden(self.le_vidArchPfad.text()))
+        self.lst_vidPfad.setCurrentRow(0)
+
+        self.filme_aus_Archiv_laden(str(self.lst_vidPfad.currentItem().text()))
 
         self.statusMeldung("Ready")
 
         # connects
-        self.tbl_film.cellActivated.connect(self.videoStart)
+        self.tbl_film.cellActivated.connect(self.videoPrepStart)
         self.cb_quelle.currentIndexChanged.connect(self.quelleLaden)
         self.btn_playVideo.clicked.connect(lambda: self.videoStart(self.tbl_film.currentRow(), 0))
+        self.lst_vidPfad.currentRowChanged.connect(lambda: self.filme_aus_Archiv_laden(str(self.lst_vidPfad.currentItem().text())))
+        self.tbl_vorhFilm.cellDoubleClicked.connect(self.videoArchStart)
+        self.tbl_vorhFilm.cellClicked.connect(self.videoArchInfo)
 
     @pyqtSlot(int)
     def quelleLaden(self, quellIndex):
@@ -149,13 +162,37 @@ class VidArchiverApp(QMainWindow, VidArchiverUI.Ui_MainWindow):
                 filmliste.append(vid)
                 nr += 1
             break   # nur oberste Ebene zählt
-
+        if nr > 0:
+            self.tbl_film.setCurrentCell(0,0)
         return filmliste
+
+    @pyqtSlot()
+    def filme_aus_Archiv_laden(self, adir):
+        '''
+        lädt die Filme aus dem gewählten Archiv-Pfad in die Tabelle self.tbl_vorhFilm
+        '''
+        self.tbl_vorhFilm.clearContents()
+        self.tbl_vorhFilm.setRowCount(0)
+        nr = 0
+        for root, dirs, files in os.walk(adir):
+            for fil in files:
+                vid = adir + os.path.sep + fil
+                vlen = format_size(os.stat(vid).st_size)
+                vdat = time.strftime('%Y-%m-%d', time.localtime(os.stat(vid).st_ctime))
+                self.tbl_vorhFilm.insertRow(nr)
+                self.tbl_vorhFilm.setItem(nr, 0, QTableWidgetItem(str(fil)))
+                self.tbl_vorhFilm.setItem(nr, 1, QTableWidgetItem(str(vlen)))
+                self.tbl_vorhFilm.setItem(nr, 2, QTableWidgetItem(str(vdat)))
+                nr += 1
+            break   # nur oberste Ebene zählt
+        if nr > 0:
+            self.tbl_vorhFilm.setCurrentCell(0,0)
+        return
 
 
     def zielPfadeLaden(self, vdir):
         '''
-        lädt die verfügbaren Ordner im Archiv in die eine Tabelle
+        lädt die verfügbaren Ordner im Archiv in eine Liste;
         übergeht dabei alle Ordner mit beginnendem "_" auf oberster Ebene
         Param:  vdir    Ordner des Archives
         '''
@@ -171,24 +208,36 @@ class VidArchiverApp(QMainWindow, VidArchiverUI.Ui_MainWindow):
                     zielpfad.append(tst)    # Pfad merken        
         return sorted(zielpfad)
 
-    # Funktionen
+    @pyqtSlot(int, int)
+    def videoArchInfo(self, row, col):
+        vid = self.lst_vidPfad.currentItem().text() + os.path.sep + self.tbl_vorhFilm.item(row, col).text()
+        self.statusMeldung(vid)
+
     @pyqtSlot(str)
     def statusMeldung(self, meldung):
         self.statusbar.showMessage(meldung)
 
-    # @pyqtSlot(bool)
-    # def btnVideoStart(self, x):
-    #     self.cb_quelle.currentIndexChanged.emit(self.cb_quelle.currentIndex())
+    @pyqtSlot(int, int)
+    def videoPrepStart(self, row, col):
+        vid = self.vpath + os.path.sep + str(self.cb_quelle.currentText()) + os.path.sep + self.tbl_film.item(row, col).text()
+        self.videoStart(vid)
 
     @pyqtSlot(int, int)
-    def videoStart(self, row, col):
-        if col > 0 or row > self.tbl_film.rowCount():
-            return
-        vid = self.vpath + os.path.sep + str(self.cb_quelle.currentText()) + os.path.sep + self.tbl_film.item(row, col).text()
+    def videoArchStart(self, row, col):
+        vid = self.lst_vidPfad.currentItem().text() + os.path.sep + self.tbl_vorhFilm.item(row, col).text()
+        self.videoStart(vid)
+
+    # Funktionen
+    def videoStart(self, video):
+        '''
+        startet ein Video
+        :param video: das zu startende Video
+        :return:
+        '''
         try:
-            os.startfile(vid)
+            os.startfile(video)
         except:
-            self.statusMeldung("Fehler: Kann das Video [{}] nicht starten!".format(vid))
+            self.statusMeldung("Fehler: Kann das Video [{}] nicht starten!".format(video))
             beepSound(self.app)
         return
 #
