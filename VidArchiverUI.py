@@ -106,7 +106,7 @@ class Ui_MainWindow(object):
         self.tbl_vorhFilm.setHorizontalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
         self.tbl_vorhFilm.setHorizontalHeaderItem(2, item)
-        self.tbl_vorhFilm.verticalHeader().setDefaultSectionSize(50)
+        self.tbl_vorhFilm.verticalHeader().setDefaultSectionSize(25)
         self.verticalLayout_9.addWidget(self.tbl_vorhFilm, 0, QtCore.Qt.AlignRight)
         self.horizontalLayout_2.addLayout(self.verticalLayout_9)
         self.horizontalLayoutWidget_2 = QtWidgets.QWidget(self.centralwidget)
