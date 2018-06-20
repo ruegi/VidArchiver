@@ -194,7 +194,7 @@
           <number>5</number>
          </property>
          <attribute name="verticalHeaderDefaultSectionSize">
-          <number>50</number>
+          <number>25</number>
          </attribute>
          <row/>
          <row/>
