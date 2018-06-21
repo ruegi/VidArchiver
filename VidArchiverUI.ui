@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1363</width>
-    <height>805</height>
+    <height>767</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,8 +18,7 @@
     <normaloff>VidArchiver.ico</normaloff>VidArchiver.ico</iconset>
   </property>
   <property name="styleSheet">
-   <string notr="true">
-</string>
+   <string notr="true"/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
@@ -66,20 +65,24 @@
      <rect>
       <x>10</x>
       <y>80</y>
-      <width>1341</width>
-      <height>601</height>
+      <width>1351</width>
+      <height>591</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item alignment="Qt::AlignHCenter">
+       <item>
         <widget class="QLabel" name="lbl_filmeQuelle">
          <property name="styleSheet">
-          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
+          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;
+background-color: rgb(184, 191, 255);</string>
          </property>
          <property name="text">
           <string>Filme in der Quelle</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
          </property>
         </widget>
        </item>
@@ -91,8 +94,14 @@
            <height>16777215</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
          <property name="styleSheet">
-          <string notr="true">background-color: rgb(255, 255, 203);</string>
+          <string notr="true">background-color: rgb(255, 255, 203);
+alternate-background-color: rgb(170, 255, 127);</string>
          </property>
          <property name="editTriggers">
           <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
@@ -136,20 +145,29 @@
      </item>
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_3">
-       <item alignment="Qt::AlignHCenter">
+       <item>
         <widget class="QLabel" name="lbl_filmOrdner">
          <property name="styleSheet">
-          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
+          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;
+background-color: rgb(184, 191, 255);</string>
          </property>
          <property name="text">
           <string>Verfügbare Archiv-Ordner</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QListWidget" name="lst_vidPfad">
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
          <property name="styleSheet">
-          <string notr="true">background-color: rgb(217, 205, 255);</string>
+          <string notr="true">background-color: rgb(115, 170, 170);</string>
          </property>
         </widget>
        </item>
@@ -157,17 +175,22 @@
      </item>
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_9">
-       <item alignment="Qt::AlignHCenter">
+       <item alignment="Qt::AlignTop">
         <widget class="QLabel" name="label">
          <property name="styleSheet">
-          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
+          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;
+background-color: rgb(184, 191, 255);
+</string>
          </property>
          <property name="text">
           <string>Filme im Archiv-Ordner</string>
          </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
         </widget>
        </item>
-       <item alignment="Qt::AlignRight">
+       <item>
         <widget class="QTableWidget" name="tbl_vorhFilm">
          <property name="minimumSize">
           <size>
@@ -175,8 +198,14 @@
            <height>0</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
          <property name="styleSheet">
-          <string notr="true">background-color: rgb(154, 255, 152);</string>
+          <string notr="true">background-color: rgb(154, 255, 152);
+alternate-background-color: rgb(255, 226, 176);</string>
          </property>
          <property name="editTriggers">
           <set>QAbstractItemView::DoubleClicked</set>
@@ -206,45 +235,117 @@
            <string>Film</string>
           </property>
          </column>
-         <column>
-          <property name="text">
-           <string>Größe</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Datum</string>
-          </property>
-         </column>
         </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_2">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(200, 200, 200);</string>
+         </property>
+         <property name="title">
+          <string>Video im Archiv ...</string>
+         </property>
+         <widget class="QPushButton" name="btn_del">
+          <property name="geometry">
+           <rect>
+            <x>11</x>
+            <y>21</y>
+            <width>130</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>130</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>&amp;löschen</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="btn_rename">
+          <property name="geometry">
+           <rect>
+            <x>150</x>
+            <y>20</y>
+            <width>130</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>&amp;umbenennen</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="btn_showArchVideo">
+          <property name="geometry">
+           <rect>
+            <x>288</x>
+            <y>21</y>
+            <width>130</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>&amp;zeigen</string>
+          </property>
+         </widget>
+        </widget>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Film</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="le_ArchivFilm"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Größe</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="le_ArchivFilmGr"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>Datum</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLineEdit" name="le_ArchivFilmDat"/>
+         </item>
+        </layout>
        </item>
       </layout>
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="horizontalLayoutWidget_2">
+   <widget class="QGroupBox" name="horizontalGroupBox_2">
     <property name="geometry">
      <rect>
       <x>10</x>
       <y>680</y>
-      <width>1031</width>
-      <height>80</height>
+      <width>1341</width>
+      <height>41</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
-     <item>
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
      <item>
       <widget class="QPushButton" name="btn_playVideo">
        <property name="sizePolicy">
@@ -262,30 +363,20 @@
       </widget>
      </item>
      <item>
-      <spacer name="horizontalSpacer">
+      <spacer name="horizontalSpacer_2">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Preferred</enum>
+       </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>60</width>
+         <width>40</width>
          <height>20</height>
         </size>
        </property>
       </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btn_unlinkVideo">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Video aus Pfad &amp;entfernen</string>
-       </property>
-      </widget>
      </item>
      <item>
       <widget class="QPushButton" name="btn_linkVideo">
@@ -296,12 +387,12 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Video dem Pfad &amp;zufügen</string>
+        <string>Video &amp;in den  Pfad einsortieren (F5)</string>
        </property>
       </widget>
      </item>
      <item>
-      <spacer name="horizontalSpacer_3">
+      <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -312,6 +403,48 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_pfadNeu">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>neuer Unterordner</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Preferred</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>500</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_ende">
+       <property name="text">
+        <string>Ende</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>
@@ -341,7 +474,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>V0.1 rg 06.2018</string>
+     <string>V0.2 rg 06.2018</string>
     </property>
    </widget>
   </widget>
@@ -358,5 +491,22 @@
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>btn_ende</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1311</x>
+     <y>740</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>681</x>
+     <y>402</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
