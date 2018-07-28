@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QVBoxLayout, 
                              QApplication,
                              QMessageBox,
+                             QInputDialog,
                              QFileSystemModel)
 
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt, QDir, QModelIndex
@@ -115,10 +116,13 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         # connects
         # --------------------------------------------------------------------------------------------
         self.cb_quelle.currentIndexChanged.connect(self.quelleLaden)
-        self.btn_playVideo.clicked.connect(self.videoPrepStart)
+        self.btn_showPrepVideo.clicked.connect(self.videoPrepStart)
         self.lst_vidPfad.currentRowChanged.connect(self.filme_aus_Archiv_laden)
         self.tbl_film.itemSelectionChanged.connect(self.videoPrepDetail)
         self.tbl_film.cellActivated.connect(self.videoPrepStart)
+        self.btn_renamePrep.clicked.connect(lambda: self.videoPrepRen(self.le_PrepFilm.text()))
+        self.btn_showPrepVideo.clicked.connect(self.videoPrepStart)
+        self.btn_delPrep.clicked.connect(self.videoPrepDel)
         self.tbl_vorhFilm.itemSelectionChanged.connect(self.videoArchDetail)
         self.tbl_vorhFilm.cellActivated.connect(self.videoArchStart)
         self.tbl_vorhFilm.doubleClicked.connect(self.videoArchStart)
@@ -126,6 +130,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.btn_del.clicked.connect(self.videoArchDel)
         self.btn_rename.clicked.connect(lambda: self.videoArchRen(self.le_ArchivFilm.text()))
         self.btn_linkVideo.clicked.connect(self.sortVideoInArch)
+        self.btn_unlinkVideo.clicked.connect(self.unsortVideoInArch)
         self.lst_vidPfad.doubleClicked.connect(self.sortVideoInArch)
         self.btn_pfadNeu.clicked.connect(self.neuerArchPfad)
         self.videoPrepDetail()
@@ -136,8 +141,14 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
     def keyPressEvent(self, event):
         w = self.focusWidget()
         if event.key() == Qt.Key_F5:
-            if w == self.lst_vidPfad or w == self.tbl_film:
-                self.sortVideoInArch()
+            if (event.modifiers() & Qt.ShiftModifier):
+                shift = True
+                if w == self.tbl_vorhFilm:
+                    self.unsortVideoInArch()
+            else:
+                shift = False
+                if w == self.lst_vidPfad or w == self.tbl_film:
+                    self.sortVideoInArch()
         elif event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
             if w == self.tbl_vorhFilm:
                 self.videoArchStart()
@@ -149,25 +160,13 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                 self.prepPfadeLaden(w.text())
         return
 
-    def getCurrentArchPath(self):
-        if self.lst_vidPfad.currentRow() < 0:   # nix zu tun
-            return None                        
-        else:
-            return(self.vpath + self.lst_vidPfad.currentItem().text())
-
+    # Verwaltung der linken seite
+    # --------------------------------------------------------------------------------------------
     def getCurrentPrepPath(self):
         if self.cb_quelle.currentIndex() < 0:
             return(None)
         else:
             return(self.vpath + os.sep + self.cb_quelle.currentText())
-
-    def getCurentArchFilm(self):
-        row = self.tbl_vorhFilm.currentRow()
-        if row < 0:
-            # print("Aktuelle Zeile in ArchFilm ist {}".format(row))
-            return (None)
-        else:
-            return(self.tbl_vorhFilm.item(row, 0).text())
 
     def getCurentPrepFilm(self):
         # vid = self.vpath + os.path.sep + str(self.cb_quelle.currentText()) + os.path.sep + self.tbl_film.item(row, col).text()
@@ -199,6 +198,164 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             break   # nur oberste Ebene zählt
         return preppfad
 
+    @pyqtSlot()
+    def prepFilmeLaden(self):
+        self.filmliste = self.filmeLaden(self.le_vidArchPfad.text() + os.path.sep + str(self.cb_quelle.currentText()))
+        if len(self.filmliste) > 0:
+            self.tbl_film.setCurrentCell(0, 0)
+
+    def filmeLaden(self, prepdir, pos=None):
+        '''
+        lädt die Filme aus dem gewählten prep-Pfad in die Tabelle self.tbl_film
+        '''
+        filmliste = []
+        self.PrepReload = True
+        self.tbl_film.clearContents()
+        self.tbl_film.setRowCount(0)
+        self.tbl_film.setColumnCount(1)
+        nr = 0
+        for root, dirs, files in os.walk(prepdir):
+            for fil in files:
+                vid = prepdir + os.path.sep + fil
+                self.tbl_film.insertRow(nr)
+                self.tbl_film.setItem(nr, 0, QTableWidgetItem(str(fil)))
+                # print(self.tbl_film.item(nr, 0).text())
+                filmliste.append(vid)
+                # print(fil)
+                # print(nr, self.tbl_film.rowCount())
+                nr += 1
+            break   # nur oberste Ebene zählt
+
+        self.PrepReload = False
+        if nr > 0:
+            if pos is None:
+                self.tbl_film.setCurrentCell(0,0)
+            else:   # versuchen zu positionieren
+                lst = self.tbl_film.findItems(pos, Qt.MatchExactly)
+                if len(lst) > 0:
+                    self.tbl_film.setCurrentItem(lst[0])
+                else:
+                    self.tbl_film.setCurrentCell(0, 0)
+            self.videoPrepDetail()
+
+        # print(filmliste)
+        return filmliste
+
+    @pyqtSlot()
+    def videoPrepStart(self):
+        pdir = self.getCurrentPrepPath()
+        film = self.getCurentPrepFilm()
+        if pdir is None or film is None:
+            return
+        else:
+            vid = pdir + os.sep + film
+            self.videoStart(vid)
+
+    @pyqtSlot()
+    def videoPrepDetail(self):
+        # print("videoPrepDetail: self.PrepReloaded=", self.PrepReload, "; self.tbl_film.rowCount()=", self.tbl_film.rowCount())
+        if self.PrepReload or (self.tbl_film.rowCount() == 0):
+            # self.tbl_film.clearContents()
+            self.le_PrepFilm.setText("")
+            self.le_PrepFilmGr.setText("")
+            self.le_PrepFilmDat.setText("")
+            return
+        else:
+            pdir = self.getCurrentPrepPath()
+            pfilm = self.getCurentPrepFilm()
+            if pdir is None or pfilm is None:
+                self.le_PrepFilm.setText("")
+                self.le_PrepFilmGr.setText("")
+                self.le_PrepFilmDat.setText("")
+            else:
+                # print(self.lst_vidPfad.currentItem().text())
+                # fil = self.tbl_vorhFilm.item(self.tbl_vorhFilm.currentRow(), 0).text()
+                vid = pdir + os.path.sep + pfilm
+                vlen = format_size(os.stat(vid).st_size)
+                vdat = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.stat(vid).st_ctime))
+                self.le_PrepFilm.setText(pfilm)
+                self.le_PrepFilmGr.setText(vlen)
+                self.le_PrepFilmDat.setText(vdat)
+        self.le_PrepFilm.setReadOnly(True)
+        self.le_PrepFilmGr.setReadOnly(True)
+        self.le_PrepFilmDat.setReadOnly(True)
+
+    @pyqtSlot()
+    def videoPrepDel(self):
+        prepO = self.getCurrentPrepPath()
+        fname = self.getCurentPrepFilm()
+        if fname is None:
+            return
+        reply = QMessageBox.question(self, "Wirklich?",
+                                     "Film [{0}] aus dem PrepOrdner [{1}] löschen?\n\nKeine Panik!\n".format(fname, prepO) +
+                                     "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
+                                         self.vpath + os.sep + self.delBasket),
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            delVideo = prepO + os.sep + fname
+            delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
+            nr = self.tbl_film.currentRow() + 1
+            rc = self.tbl_film.rowCount()
+            if rc == 1:     # letzter Film wird gelöscht
+                nextFilm = None
+            else:
+                if nr >= rc:
+                    nr = 0
+                try:
+                    nextFilm = self.tbl_film.item(nr, 0).text()
+                except:
+                    nextFilm = None
+
+            try:
+                os.rename(delVideo, delTarget)
+            except OSError as err:
+                self.statusMeldung("Fehler! ({})".format(err.strerror))
+            finally:
+                # hier mus noch etwas gezaubert werden, um nicht auf 0 zu repositionieren
+                self.filmeLaden(prepO, pos=nextFilm)
+                self.statusMeldung(
+                    "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
+        else:
+            self.statusMeldung("Löschen abgebrochen!".format(fname))
+        return
+
+    @pyqtSlot(str)
+    def videoPrepRen(self, fname):
+        # startet einen Dialog zur Erfassung des neuen VideoNamens
+        alterName = fname
+        pfad = self.getCurrentPrepPath()
+        neuerName, ok = QInputDialog.getText(self, 'Fim im Prep-Ordner umbenennen', 'Neuer Name:',
+                                        QLineEdit.Normal, alterName)
+        if ok:
+            neuerFullName = pfad + os.sep + neuerName
+            alterFullName = pfad + os.sep + alterName
+            try:
+                os.rename(alterFullName, neuerFullName)
+            except OSError as err:
+                self.statusMeldung("Fehler! ({})".format(err.strerror))
+            finally:
+                self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))
+                # print(neuerName)
+                self.filmeLaden(pfad, pos=neuerName)
+        return
+
+
+    # Verwaltung der rechten seite
+    # --------------------------------------------------------------------------------------------
+    def getCurrentArchPath(self):
+        if self.lst_vidPfad.currentRow() < 0:   # nix zu tun
+            return None
+        else:
+            return(self.vpath + self.lst_vidPfad.currentItem().text())
+
+    def getCurentArchFilm(self):
+        row = self.tbl_vorhFilm.currentRow()
+        if row < 0:
+            # print("Aktuelle Zeile in ArchFilm ist {}".format(row))
+            return (None)
+        else:
+            return(self.tbl_vorhFilm.item(row, 0).text())
+
     def ladeVidArchPfade(self, pos=None):
         self.lst_vidPfad.clear()
         lst = self.zielPfadeLaden(self.vpath)
@@ -218,42 +375,6 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                 print(pos , "not found!")
         self.filme_aus_Archiv_laden()
         return
-
-    @pyqtSlot()
-    def prepFilmeLaden(self):
-        self.filmliste = self.filmeLaden(self.le_vidArchPfad.text() + os.path.sep + str(self.cb_quelle.currentText()))
-        if len(self.filmliste) > 0:
-            self.tbl_film.setCurrentCell(0, 0)
-
-    def filmeLaden(self, prepdir):
-        '''
-        lädt die Filme aus dem gewählten prep-Pfad in die Tabelle self.tbl_film
-        '''
-        filmliste = []
-        self.PrepReload = True
-        self.tbl_film.clearContents()
-        self.tbl_film.setRowCount(0)
-        self.tbl_film.setColumnCount(1)
-        nr = 0
-        for root, dirs, files in os.walk(prepdir):
-            for fil in files:                
-                vid = prepdir + os.path.sep + fil
-                self.tbl_film.insertRow(nr)
-                self.tbl_film.setItem(nr, 0, QTableWidgetItem(str(fil)))
-                # print(self.tbl_film.item(nr, 0).text())
-                filmliste.append(vid)
-                # print(fil)
-                # print(nr, self.tbl_film.rowCount())
-                nr += 1
-            break   # nur oberste Ebene zählt
-
-        self.PrepReload = False
-        if nr > 0:
-            self.tbl_film.setCurrentCell(0,0)
-            self.videoPrepDetail()
-
-        # print(filmliste)
-        return filmliste
 
     @pyqtSlot()
     def filme_aus_Archiv_laden(self, pos=None):
@@ -291,59 +412,6 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                     self.tbl_vorhFilm.setCurrentCell(0, 0)
         return
 
-    def zielPfadeLaden(self, vdir):
-        '''
-        lädt die verfügbaren Ordner im Archiv in eine Liste;
-        übergeht dabei alle Ordner mit beginnendem "_" auf oberster Ebene
-        Param:  vdir    Ordner des Archives
-        '''
-        zielpfad = []
-        lv = len(vdir) + 1
-        for root, dirs, files in os.walk(vdir,  topdown=True):
-            for dir in dirs:
-                tst = root + os.path.sep + dir 
-                if tst[lv] == "_":
-                    # skip all _in* and _raw and _done paths
-                    pass
-                else:
-                    zielpfad.append(tst)    # Pfad merken        
-        return sorted(zielpfad)
-
-    @pyqtSlot(int, int)
-    def videoArchInfo(self):
-        adir = self.getCurrentArchPath()
-        film = self.getCurentArchFilm()        
-
-        if adir is None or film is None:
-            vid = ""
-        else:
-            vid = adir + os.path.sep + film
-        self.statusMeldung(vid)
-
-    @pyqtSlot(str)
-    def statusMeldung(self, meldung):
-        self.statusbar.showMessage(meldung)
-
-    @pyqtSlot()
-    def videoPrepStart(self):
-        pdir = self.getCurrentPrepPath()
-        film = self.getCurentPrepFilm()
-        if pdir is None or film is None:
-            return
-        else:
-            vid = pdir + os.sep + film
-            self.videoStart(vid)
-
-    @pyqtSlot()
-    def videoArchStart(self):
-        vpfad = self.getCurrentArchPath()
-        film = self.getCurentArchFilm()
-        if vpfad is None or film is None:
-            return
-        else:
-            vid = vpfad + os.path.sep + film
-            self.videoStart(vid)
-
     @pyqtSlot()
     def videoArchDetail(self):
         if self.ArchivReload or self.tbl_vorhFilm.rowCount() == 0:
@@ -373,33 +441,14 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.le_ArchivFilmDat.setReadOnly(True)
 
     @pyqtSlot()
-    def videoPrepDetail(self):
-        # print("videoPrepDetai; self.PrepReloaded=", self.PrepReload, "; self.tbl_film.rowCount()=", self.tbl_film.rowCount())
-        if self.PrepReload or (self.tbl_film.rowCount() == 0):
-            # self.tbl_film.clearContents()
-            self.le_PrepFilm.setText("")
-            self.le_PrepFilmGr.setText("")
-            self.le_PrepFilmDat.setText("")
+    def videoArchStart(self):
+        vpfad = self.getCurrentArchPath()
+        film = self.getCurentArchFilm()
+        if vpfad is None or film is None:
             return
         else:
-            pdir = self.getCurrentPrepPath()
-            pfilm = self.getCurentPrepFilm()
-            if pdir is None or pfilm is None:
-                self.le_PrepFilm.setText("")
-                self.le_PrepFilmGr.setText("")
-                self.le_PrepFilmDat.setText("")
-            else:
-                # print(self.lst_vidPfad.currentItem().text())
-                # fil = self.tbl_vorhFilm.item(self.tbl_vorhFilm.currentRow(), 0).text()
-                vid = pdir + os.path.sep + pfilm
-                vlen = format_size(os.stat(vid).st_size)
-                vdat = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.stat(vid).st_ctime))
-                self.le_PrepFilm.setText(pfilm)
-                self.le_PrepFilmGr.setText(vlen)
-                self.le_PrepFilmDat.setText(vdat)
-        self.le_PrepFilm.setReadOnly(True)
-        self.le_PrepFilmGr.setReadOnly(True)
-        self.le_PrepFilmDat.setReadOnly(True)
+            vid = vpfad + os.path.sep + film
+            self.videoStart(vid)
 
     @pyqtSlot(str)
     def videoArchRen(self, fname):
@@ -434,27 +483,30 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
     def renameDialogCancel(self):
         self.statusbar.showMessage("renameDialog Cancel: {}".format(self.updateDialog.le_rename.text()))
 
-
     @pyqtSlot()
     def videoArchDel(self):
         fname = self.getCurentArchFilm()
+        frow = self.tbl_vorhFilm.currentRow()
         if fname is None:
             return
         reply = QMessageBox.question(self, "Wirklich?",
-                                    "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
-                                     "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(self.vpath + os.sep + self.delBasket),
-                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:            
+                                     "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
+                                     "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
+                                         self.vpath + os.sep + self.delBasket),
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
             adir = self.getCurrentArchPath()
-            delVideo = adir + os.sep + fname            
+            delVideo = adir + os.sep + fname
             delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
             try:
                 os.rename(delVideo, delTarget)
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
-                self.filme_aus_Archiv_laden(pos=None)
-                self.statusMeldung("Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
+
+                self.filme_aus_Archiv_laden(pos=self.getNextTableText(self.tbl_vorhFilm, frow))
+                self.statusMeldung(
+                    "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
         else:
             self.statusMeldung("Löschen abgebrochen!".format(fname))
         return
@@ -476,8 +528,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             moved = 0
             for itm in lstItems:
                 i += 1
-#                if (i % 3) == 1:    # nur Item 1, 4, 7 usw sind Dateinamen
-                if itm.column() == 0:  # nur Dateinamen                    
+                #                if (i % 3) == 1:    # nur Item 1, 4, 7 usw sind Dateinamen
+                if itm.column() == 0:  # nur Dateinamen
                     qVideoName = itm.text()
                     qVideoFull = pdir + os.sep + qVideoName
                     zVideoTarget = adir
@@ -488,7 +540,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                         os.rename(qVideoFull, zVideoFull)
                     except OSError as err:
                         QMessageBox.warning(self, "Achtung / Fehler",
-                                            "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName, zVideoTarget) +
+                                            "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
+                                                                                                    zVideoTarget) +
                                             "Fehlermedlung: {0}".format(err.strerror),
                                             QMessageBox.Ok)
                         # self.statusMeldung("Fehler! ({})".format(err.strerror))
@@ -506,8 +559,93 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         if moved == 1:
             self.statusMeldung("Es wurde ein Film in das Archiv nach [{0}] verschoben!".format(zVideoFull))
         else:
-            self.statusMeldung("Es wurden {0} Filme in das Archiv nach [{1}] verschoben!".format(moved, zVideoTarget))
+            self.statusMeldung(
+                "Es wurden {0} Filme in das Archiv nach [{1}] verschoben!".format(moved, zVideoTarget))
         return
+
+    @pyqtSlot()
+    def unsortVideoInArch(self):
+        '''
+        nimmt den aktuellen Film aus dem ArchivOrdner und sortiert ihn in den aktuellen PrepOrdner ein
+        :return: ---
+        '''
+        pos = None
+        lstItems = self.tbl_vorhFilm.selectedItems()
+        if lstItems:
+            # print(len(lstItems))
+            pdir = self.getCurrentPrepPath()
+            adir = self.getCurrentArchPath()
+            pos = lstItems[0].text()
+            npos = self.getNextTableText(self.tbl_vorhFilm, self.tbl_vorhFilm.currentRow())
+            i = 0
+            moved = 0
+            for itm in lstItems:
+                i += 1
+                #                if (i % 3) == 1:    # nur Item 1, 4, 7 usw sind Dateinamen
+                if itm.column() == 0:  # nur Dateinamen
+                    qVideoName = itm.text()
+                    qVideoFull = adir + os.sep + qVideoName
+                    zVideoTarget = pdir
+                    zVideoFull = zVideoTarget + os.sep + qVideoName
+                    # print(i, ": ", qVideoFull, " --> ", end="")
+                    # print(zVideoFull)
+                    try:
+                        os.rename(qVideoFull, zVideoFull)
+                    except OSError as err:
+                        QMessageBox.warning(self, "Achtung / Fehler",
+                                            "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
+                                                                                                    zVideoTarget) +
+                                            "Fehlermedlung: {0}".format(err.strerror),
+                                            QMessageBox.Ok)
+                        # self.statusMeldung("Fehler! ({})".format(err.strerror))
+                        break
+                    finally:
+                        time.sleep(0.2)
+                        moved += 1
+                        i += 1
+                else:
+                    continue
+
+            self.filmeLaden(pdir, pos=pos)
+            self.filme_aus_Archiv_laden(pos=npos)
+
+        if moved == 1:
+            self.statusMeldung("Es wurde ein Film aus dem Archiv nach [{0}] verschoben!".format(zVideoFull))
+        else:
+            self.statusMeldung(
+                "Es wurden {0} Filme aus dem Archiv nach [{1}] verschoben!".format(moved, zVideoTarget))
+        return
+
+    # Verwaltung der Mitte
+    # --------------------------------------------------------------------------------------------
+    def zielPfadeLaden(self, vdir):
+        '''
+        lädt die verfügbaren Ordner im Archiv in eine Liste;
+        übergeht dabei alle Ordner mit beginnendem "_" auf oberster Ebene
+        Param:  vdir    Ordner des Archives
+        '''
+        zielpfad = []
+        lv = len(vdir) + 1
+        for root, dirs, files in os.walk(vdir,  topdown=True):
+            for dir in dirs:
+                tst = root + os.path.sep + dir 
+                if tst[lv] == "_":
+                    # skip all _in* and _raw and _done paths
+                    pass
+                else:
+                    zielpfad.append(tst)    # Pfad merken        
+        return sorted(zielpfad)
+
+    @pyqtSlot(int, int)
+    def videoArchInfo(self):
+        adir = self.getCurrentArchPath()
+        film = self.getCurentArchFilm()        
+
+        if adir is None or film is None:
+            vid = ""
+        else:
+            vid = adir + os.path.sep + film
+        self.statusMeldung(vid)
 
     @pyqtSlot()
     def neuerArchPfad(self):
@@ -558,6 +696,37 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
     # ----------------------------------------------------------------------------------------------------------------
     # Funktionen
     # ----------------------------------------------------------------------------------------------------------------
+    def getNextTableText(self, tbl, row, gollum=0):
+        '''
+        Such den Text in der Nachfolgezeile der angegebenen Zeile in Spalte gollum (default: Spalte 0)
+        :param tbl: QTableWidget, auf die sich die such bezieht
+        :param itm: aktuelles Item, dessen Nachfolger gesucht wird
+        :return: Text des nachfolgenden Items oder None
+        '''
+        row = tbl.currentRow()
+        col = gollum
+        anz = tbl.rowCount()
+        try:
+            ctxt = tbl.item(row, col).text()
+        except:
+            ctxt = None
+        if anz == 0:
+            return None
+        elif anz == 1:
+            return ctxt
+        else:
+            # es gibt mehrere Einträge, den nächsten suchen
+            nrow = (row + 1) % anz
+            try:
+                txt = tbl.item(nrow, col).text()
+            except:
+                txt = None
+            return txt
+
+    @pyqtSlot(str)
+    def statusMeldung(self, meldung):
+        self.statusbar.showMessage(meldung)
+
     def videoStart(self, video):
         '''
         startet ein Video
