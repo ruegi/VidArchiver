@@ -1,0 +1,16 @@
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'y:\video\__del\Kommissar Beck - Preis der Rache.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    creation_time   : 2017-06-13T03:19:35.000000Z
+    encoder         : HandBrake 1.0.7 2017040900
+  Duration: 01:29:50.06, start: 0.000000, bitrate: 2135 kb/s
+    Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, bt709), 1278x716 [SAR 1:1 DAR 639:358], 1968 kb/s, 30 fps, 30 tbr, 90k tbn, 180k tbc (default)
+    Metadata:
+      creation_time   : 2017-06-13T03:19:35.000000Z
+      handler_name    : VideoHandler
+    Stream #0:1(deu): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 160 kb/s (default)
+    Metadata:
+      creation_time   : 2017-06-13T03:19:35.000000Z
+      handler_name    : Stereo

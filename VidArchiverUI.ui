@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1363</width>
-    <height>767</height>
+    <width>1441</width>
+    <height>827</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>VideoArchiver</string>
@@ -65,11 +71,14 @@
      <rect>
       <x>10</x>
       <y>80</y>
-      <width>1351</width>
-      <height>591</height>
+      <width>1411</width>
+      <height>641</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetNoConstraint</enum>
+     </property>
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
@@ -88,15 +97,15 @@ background-color: rgb(184, 191, 255);</string>
        </item>
        <item>
         <widget class="QTableWidget" name="tbl_film">
-         <property name="maximumSize">
+         <property name="minimumSize">
           <size>
-           <width>505</width>
-           <height>16777215</height>
+           <width>300</width>
+           <height>0</height>
           </size>
          </property>
          <property name="font">
           <font>
-           <pointsize>10</pointsize>
+           <pointsize>11</pointsize>
           </font>
          </property>
          <property name="styleSheet">
@@ -104,7 +113,7 @@ background-color: rgb(184, 191, 255);</string>
 alternate-background-color: rgb(170, 255, 127);</string>
          </property>
          <property name="editTriggers">
-          <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+          <set>QAbstractItemView::NoEditTriggers</set>
          </property>
          <property name="alternatingRowColors">
           <bool>true</bool>
@@ -116,11 +125,13 @@ alternate-background-color: rgb(170, 255, 127);</string>
           <enum>QAbstractItemView::SelectRows</enum>
          </property>
          <property name="rowCount">
-          <number>3</number>
+          <number>5</number>
          </property>
          <attribute name="verticalHeaderDefaultSectionSize">
-          <number>50</number>
+          <number>25</number>
          </attribute>
+         <row/>
+         <row/>
          <row/>
          <row/>
          <row/>
@@ -129,17 +140,102 @@ alternate-background-color: rgb(170, 255, 127);</string>
            <string>Film</string>
           </property>
          </column>
-         <column>
-          <property name="text">
-           <string>Größe</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Datum</string>
-          </property>
-         </column>
         </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_4">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(200, 200, 200);</string>
+         </property>
+         <property name="title">
+          <string>Video im Prep-Ordner ...</string>
+         </property>
+         <widget class="QPushButton" name="btn_delPrep">
+          <property name="geometry">
+           <rect>
+            <x>11</x>
+            <y>21</y>
+            <width>130</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>130</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>&amp;löschen - F8</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="btn_renamePrep">
+          <property name="geometry">
+           <rect>
+            <x>150</x>
+            <y>20</y>
+            <width>130</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>&amp;umbenennen - F6</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="btn_showPrepVideo">
+          <property name="geometry">
+           <rect>
+            <x>288</x>
+            <y>21</y>
+            <width>130</width>
+            <height>23</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>&amp;zeigen - F3</string>
+          </property>
+         </widget>
+        </widget>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout_2">
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="le_PrepFilm"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Größe</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="le_PrepFilmGr"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>Datum</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLineEdit" name="le_PrepFilmDat"/>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>Film</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </item>
@@ -160,14 +256,56 @@ background-color: rgb(184, 191, 255);</string>
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="lst_vidPfad">
+        <widget class="QListWidget" name="lst_vidPfad_Main">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>120</height>
+          </size>
+         </property>
          <property name="font">
           <font>
            <pointsize>11</pointsize>
           </font>
          </property>
          <property name="styleSheet">
-          <string notr="true">background-color: rgb(115, 170, 170);</string>
+          <string notr="true">background-color: rgb(255, 255, 32);</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="lst_vidPfad_Sub">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>280</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(250, 220, 160);</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="lst_vidPfad_Base">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>180</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(255, 253, 166);</string>
          </property>
         </widget>
        </item>
@@ -176,9 +314,9 @@ background-color: rgb(184, 191, 255);</string>
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_9">
        <item alignment="Qt::AlignTop">
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="lbl_ArchivFilm">
          <property name="styleSheet">
-          <string notr="true">font: 75 10pt &quot;MS Shell Dlg 2&quot;;
+          <string notr="true">font: 75 12pt &quot;MS Shell Dlg 2&quot;;
 background-color: rgb(184, 191, 255);
 </string>
          </property>
@@ -340,28 +478,12 @@ alternate-background-color: rgb(255, 226, 176);</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>680</y>
-      <width>1341</width>
+      <y>720</y>
+      <width>1411</width>
       <height>41</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
-     <item>
-      <widget class="QPushButton" name="btn_playVideo">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Film ab&amp;spielen</string>
-       </property>
-       <property name="default">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
      <item>
       <spacer name="horizontalSpacer_2">
        <property name="orientation">
@@ -372,7 +494,7 @@ alternate-background-color: rgb(255, 226, 176);</string>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>40</width>
+         <width>100</width>
          <height>20</height>
         </size>
        </property>
@@ -387,7 +509,7 @@ alternate-background-color: rgb(255, 226, 176);</string>
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Video &amp;in den  Pfad einsortieren (F5)</string>
+        <string>Video &amp;in den  Pfad einsortieren - F5</string>
        </property>
       </widget>
      </item>
@@ -396,9 +518,12 @@ alternate-background-color: rgb(255, 226, 176);</string>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Preferred</enum>
+       </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>40</width>
+         <width>240</width>
          <height>20</height>
         </size>
        </property>
@@ -424,6 +549,32 @@ alternate-background-color: rgb(255, 226, 176);</string>
       </widget>
      </item>
      <item>
+      <spacer name="horizontalSpacer_4">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>60</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_unlinkVideo">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Video zuzück in die Quelle - Shift+F5</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer_3">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -433,7 +584,7 @@ alternate-background-color: rgb(255, 226, 176);</string>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>500</width>
+         <width>120</width>
          <height>20</height>
         </size>
        </property>
@@ -469,12 +620,25 @@ alternate-background-color: rgb(255, 226, 176);</string>
      <rect>
       <x>1210</x>
       <y>40</y>
-      <width>81</width>
+      <width>161</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>V0.2 rg 06.2018</string>
+     <string>VersionsInfo</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>600</x>
+      <y>760</y>
+      <width>161</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&lt;---  technische Info: F2   ---&gt;</string>
     </property>
    </widget>
   </widget>
@@ -483,7 +647,7 @@ alternate-background-color: rgb(255, 226, 176);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1363</width>
+     <width>1441</width>
      <height>21</height>
     </rect>
    </property>
