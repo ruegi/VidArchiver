@@ -35,6 +35,11 @@ import os
 import time
 from pathlib import Path
 
+import sqlalchemy
+import sqlalchemy.sql.default_comparator        # das braucht pyinstaller zum Finden der Module
+import vidarchdb
+
+
 # die fenster wurden mit dem qtdesigner entworfen und per pyuic5 konvertiert
 from VidArchiverUI import Ui_MainWindow
 from VidArchiverRenDialogUI import Ui_Dialog as Ui_DialogRename
@@ -42,7 +47,8 @@ from VidArchiverPfaDialogUI import Ui_Dialog as Ui_DialogPfadNeu
 
 # das soll die Importe aus dem Ordner FilmDetails mit einschließen...
 sys.path.append(r".\FilmDetails")
-import FilmDetails.FilmDetails as FD
+from FilmDetails import FilmDetails
+# import FilmDetails.FilmDetails as FD
 
 # Handle high resolution displays (thx 2 https://stackoverflow.com/questions/43904594/pyqt-adjusting-for-different-screen-resolution):
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
@@ -58,8 +64,9 @@ class Konstanten():
     VideoDir = "y:\\video"
     LoeschOrdner = "__del"
     ProgrammIcon = 'VidArchiver.ico'
-    VersionString = "V0.61 rg 15.02.2021"
-    PrepPfadBeginn = "_in"
+    VersionString = "V0.9 rg 31.05.2022"
+    PrepPfadBeginn = "_"
+    DBNAME = "Y:\\video\\vidarch.db"
 
 
 # --------------------------------------------------------------------------------
@@ -108,6 +115,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.le_vidArchPfad.setText(self.vpath)
 
         self.lbl_version.setText(Konstanten.VersionString)
+        self.lbl_db.setText(Konstanten.DBNAME)
 
         header = self.tbl_film.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
@@ -317,8 +325,13 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                 # print(self.lst_vidPfad.currentItem().text())
                 # fil = self.tbl_vorhFilm.item(self.tbl_vorhFilm.currentRow(), 0).text()
                 vid = pdir + os.path.sep + pfilm
-                vlen = format_size(os.stat(vid).st_size)
-                vdat = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.stat(vid).st_ctime))
+                try:
+                    oss = os.stat(vid)
+                    vlen = format_size(oss.st_size)                
+                    vdat = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(oss.st_ctime))
+                except:
+                    vlen = "???"
+                    vdat = "DB is async!"            
                 self.le_PrepFilm.setText(pfilm)
                 self.le_PrepFilmGr.setText(vlen)
                 self.le_PrepFilmDat.setText(vdat)
@@ -353,7 +366,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                     nextFilm = None
 
             try:
-                os.rename(delVideo, delTarget)
+                if vidarchdb.film_umbenennen(delVideo, delTarget):
+                    os.rename(delVideo, delTarget)
+                else:
+                    self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
@@ -376,7 +392,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             neuerFullName = pfad + os.sep + neuerName
             alterFullName = pfad + os.sep + alterName
             try:
-                os.rename(alterFullName, neuerFullName)
+                if vidarchdb.film_umbenennen(alterFullName, neuerFullName):
+                    os.rename(alterFullName, neuerFullName)
+                else:
+                    self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
@@ -734,15 +753,24 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                     # print(i, ": ", qVideoFull, " --> ", end="")
                     # print(zVideoFull)
                     try:
-                        os.rename(qVideoFull, zVideoFull)
+                        if vidarchdb.film_umbenennen(qVideoFull, zVideoFull):
+                            os.rename(qVideoFull, zVideoFull)
+                        else:
+                            self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
                     except OSError as err:
-                        QMessageBox.warning(self, "Achtung / Fehler",
-                                            "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
-                                                                                                    zVideoTarget) +
-                                            "Fehlermedlung: {0}".format(err.strerror),
-                                            QMessageBox.Ok)
-                        # self.statusMeldung("Fehler! ({})".format(err.strerror))
+                        self.statusMeldung("Fehler! ({})".format(err.strerror))
                         break
+                    # alter teil
+                    # try:
+                    #     os.rename(qVideoFull, zVideoFull)
+                    # except OSError as err:
+                    #     QMessageBox.warning(self, "Achtung / Fehler",
+                    #                         "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
+                    #                                                                                 zVideoTarget) +
+                    #                         "Fehlermedlung: {0}".format(err.strerror),
+                    #                         QMessageBox.Ok)
+                    #     # self.statusMeldung("Fehler! ({})".format(err.strerror))
+                    #     break
                     finally:
                         time.sleep(0.2)
                         moved += 1
@@ -787,7 +815,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                     # print(i, ": ", qVideoFull, " --> ", end="")
                     # print(zVideoFull)
                     try:
-                        os.rename(qVideoFull, zVideoFull)
+                        if vidarchdb.film_umbenennen(qVideoFull, zVideoFull):
+                            os.rename(qVideoFull, zVideoFull)
                     except OSError as err:
                         QMessageBox.warning(self, "Achtung / Fehler",
                                             "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
@@ -801,6 +830,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                         moved += 1
                         i += 1
                 else:
+
                     continue
 
             self.filmeLaden(pdir, pos=pos)
@@ -919,7 +949,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             self.statusMeldung(" TechInfo ... :-( !Keinen Film ausgewählt")
             return
         else:
-            FD.DlgMain(fname)              # We set the form to be our App (design)            
+            FilmDetails.DlgMain(fname)              # We set the form to be our App (design)            
 
     # ----------------------------------------------------------------------------------------------------------------
     # Funktionen
@@ -991,6 +1021,7 @@ def beepSound(app):
     app.beep()
 
 if __name__ == '__main__':        
+    vidarchdb.defineDBName(Konstanten.DBNAME)
     app = QApplication(sys.argv)
     form = VidArchiverApp(app)
     form.show()
