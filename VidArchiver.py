@@ -34,6 +34,7 @@ import sys
 import os
 import time
 from pathlib import Path
+from subprocess import Popen
 
 import sqlalchemy
 import sqlalchemy.sql.default_comparator        # das braucht pyinstaller zum Finden der Module
@@ -46,8 +47,8 @@ from VidArchiverRenDialogUI import Ui_Dialog as Ui_DialogRename
 from VidArchiverPfaDialogUI import Ui_Dialog as Ui_DialogPfadNeu
 
 # das soll die Importe aus dem Ordner FilmDetails mit einschließen...
-sys.path.append(r".\FilmDetails")
-from FilmDetails import FilmDetails
+# sys.path.append(r".\FilmDetails")
+# from FilmDetails import FilmDetails
 # import FilmDetails.FilmDetails as FD
 
 # Handle high resolution displays (thx 2 https://stackoverflow.com/questions/43904594/pyqt-adjusting-for-different-screen-resolution):
@@ -67,7 +68,7 @@ class Konstanten():
     VersionString = "V0.9 rg 31.05.2022"
     PrepPfadBeginn = "_"
     DBNAME = "Y:\\video\\vidarch.db"
-
+    FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
 
 # --------------------------------------------------------------------------------
 # Rename Dialog Class
@@ -686,7 +687,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         neuerFullName = pfad + os.sep + neuerName
         alterFullName = pfad + os.sep + self.alterName
         try:
-            os.rename(alterFullName, neuerFullName)
+            if vidarchdb.film_umbenennen(alterFullName, neuerFullName):
+                os.rename(alterFullName, neuerFullName)
+            else:
+                self.statusMeldung("Fehler! Konnte die DB nicht ändern!")            
         except OSError as err:
             self.statusMeldung("Fehler! ({})".format(err.strerror))
         finally:
@@ -715,7 +719,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             delVideo = adir + os.sep + fname
             delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
             try:
-                os.rename(delVideo, delTarget)
+                if vidarchdb.film_umbenennen(delVideo, delTarget):
+                    os.rename(delVideo, delTarget)
+                else:
+                    self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
             except OSError as err:
                 self.statusMeldung("Fehler! ({})".format(err.strerror))
             finally:
@@ -758,19 +765,13 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                         else:
                             self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
                     except OSError as err:
+                        QMessageBox.warning(self, "Achtung / Fehler",
+                                            "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
+                                                                                                    zVideoTarget) +
+                                            "Fehlermedlung: {0}".format(err.strerror),
+                                            QMessageBox.Ok)
                         self.statusMeldung("Fehler! ({})".format(err.strerror))
                         break
-                    # alter teil
-                    # try:
-                    #     os.rename(qVideoFull, zVideoFull)
-                    # except OSError as err:
-                    #     QMessageBox.warning(self, "Achtung / Fehler",
-                    #                         "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
-                    #                                                                                 zVideoTarget) +
-                    #                         "Fehlermedlung: {0}".format(err.strerror),
-                    #                         QMessageBox.Ok)
-                    #     # self.statusMeldung("Fehler! ({})".format(err.strerror))
-                    #     break
                     finally:
                         time.sleep(0.2)
                         moved += 1
@@ -823,7 +824,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                                                                                                     zVideoTarget) +
                                             "Fehlermedlung: {0}".format(err.strerror),
                                             QMessageBox.Ok)
-                        # self.statusMeldung("Fehler! ({})".format(err.strerror))
+                        self.statusMeldung("Fehler! ({})".format(err.strerror))
                         break
                     finally:
                         time.sleep(0.2)
@@ -908,12 +909,17 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             self.statusMeldung("Kein aktueller ArchivPfad ?? -  nichts zu tun!")
             return
         neuerPfad = pfad + os.sep + self.pfadDialog.le_pfad.text()
+        if neuerPfad.startswith(Konstanten.VideoDir):
+            relPfad = neuerPfad[len(Konstanten.VideoDir)+1:]
+        else:
+            relPfad = neuerPfad
         # print(pfad, " --> ", neuerPfad)
         try:
-            os.makedirs(neuerPfad, exist_ok=True)
+            os.makedirs(neuerPfad, exist_ok=False)  # gibt eine Exception, wenn der Ordner schon da ist
+            vidarchdb.anlage_relpath(None, relPfad)
         except OSError as err:
             self.statusMeldung("Fehler! Kann den Ordner nicht anlegen! ({})".format(err.strerror))
-            QMessageBox.alert(self, "Fehler",
+            QMessageBox.Warning(self, "Fehler",
                                     "Der Ordner [{}} konnte nicht angelegt werden\n\n".format(neuerPfad) +
                                      "FehlerMeldung: [{}]".format(err.strerror), QMessageBox.Close)
         finally:
@@ -949,7 +955,14 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             self.statusMeldung(" TechInfo ... :-( !Keinen Film ausgewählt")
             return
         else:
-            FilmDetails.DlgMain(fname)              # We set the form to be our App (design)            
+            # FilmDetails.DlgMain(fname)              # We set the form to be our App (design)
+            self.statusMeldung(f"Lade FilmDetails für {fname} . . .")
+            QApplication.processEvents()
+            proc = Popen([Konstanten.FilmInfo, fname] )
+            proc.wait()
+            self.statusMeldung("")
+
+
 
     # ----------------------------------------------------------------------------------------------------------------
     # Funktionen

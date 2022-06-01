@@ -190,24 +190,27 @@ def get_config(key: str):
 def anlage_relpath(session, relPath):
     # legt einen neuen relPath an
     # und gibt die id zurück
+    # relPath muss wirklich relativ zum ArchivPfad sein!
     global engine, conn, my_session
     if session is None:
         dbconnect()
+    else:
+        my_session = session
     if "\\" in relPath:
         relp = relPath.replace("\\", "/")
     else:
         relp = relPath
-    q = session.query(vapfad).filter(vapfad.relPath == relp)
+    q = my_session.query(vapfad).filter(vapfad.relPath == relp)
     pa = q.first()
     if pa is None:
         pa = vapfad(relPath=relPath)
         try:
-            session.add(pa)
-            session.commit()
+            my_session.add(pa)
+            my_session.commit()
             id = pa.id
         except:     # hier sollte es nur bei einer race-condition hinkommen...
-            session.rollback()
-            q = session.query(vapfad).filter(vapfad.relPath == relPath)
+            my_session.rollback()
+            q = my_session.query(vapfad).filter(vapfad.relPath == relPath)
             pa = q.first()
             id = pa.id
     else:
