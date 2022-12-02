@@ -2,56 +2,47 @@
 '''
 Created on 2018-06-01
 @author: rg
-Vidarchiver.py mit pyqt5
+Vidarchiver.py mit pyqt6
 
 ermöglicht es, die Videos in den Prep-Verzeichnissen _in1..._in10
 in die passenden VideoArchivOrdner einzusortieren
+
+Anderungen:
+    Version Datum       Inhalt
+    ------- ----------  ------------------------------------------
+    1.00    2022-11-27  Umstellung auf PyQt6; 
+                        Öffnung dahingehend, dass alle Video-Ordner QuellOrdner sein können
+
 '''
 
-# import PyQt5.QtWidgets # Import the PyQt5 module we'll need
-from PyQt5.QtWidgets import (QMainWindow,
-                             QDialog,
-                             QLabel,
-                             QTableWidgetItem,
-                             QAbstractItemView,
-                             QHeaderView,
-                             QLineEdit, 
-                             QPushButton,
-                             QWidget,
-                             QHBoxLayout, 
-                             QVBoxLayout, 
-                             QApplication,
-                             QMessageBox,
-                             QInputDialog,
-                             QFileSystemModel)
-
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread, Qt, QDir, QModelIndex
-from PyQt5.QtGui import QIcon
-
-from math import log as logarit
-from datetime import datetime
-import sys
 import os
+import sys
 import time
+from datetime import datetime
+from math import log as logarit
 from pathlib import Path
 from subprocess import Popen
 
-import sqlalchemy
-import sqlalchemy.sql.default_comparator        # das braucht pyinstaller zum Finden der Module
+# import sqlalchemy
+import sqlalchemy.sql.default_comparator  # das braucht pyinstaller zum Finden der Module
+
+from PyQt6.QtCore import (QDir, QModelIndex, QObject, Qt, QThread, pyqtSignal, pyqtSlot, QUrl)
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QDialog,
+                             QHBoxLayout, QHeaderView,
+                             QInputDialog, QLabel, QLineEdit, QMainWindow,
+                             QMessageBox, QPushButton, QTableWidgetItem,
+                             QVBoxLayout, QWidget)
+from PyQt6.QtMultimedia import QSoundEffect
+
 import vidarchdb
-
-
-# die fenster wurden mit dem qtdesigner entworfen und per pyuic5 konvertiert
-from VidArchiverUI import Ui_MainWindow
-from VidArchiverRenDialogUI import Ui_Dialog as Ui_DialogRename
 from VidArchiverPfaDialogUI import Ui_Dialog as Ui_DialogPfadNeu
-
-# das soll die Importe aus dem Ordner FilmDetails mit einschließen...
-# sys.path.append(r".\FilmDetails")
-# from FilmDetails import FilmDetails
-# import FilmDetails.FilmDetails as FD
+from VidArchiverRenDialogUI import Ui_Dialog as Ui_DialogRename
+# die fenster wurden mit dem qtdesigner entworfen und per pyuic6 konvertiert
+from VidArchiverUI import Ui_MainWindow
 
 # Handle high resolution displays (thx 2 https://stackoverflow.com/questions/43904594/pyqt-adjusting-for-different-screen-resolution):
+# In PyQt6 nicht mehr erforderlich!
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
 if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
@@ -65,10 +56,12 @@ class Konstanten():
     VideoDir = "y:\\video"
     LoeschOrdner = "__del"
     ProgrammIcon = 'VidArchiver.ico'
-    VersionString = "V0.9 rg 31.05.2022"
+    VersionString = "V1.1 rg 02.12.2022"
     PrepPfadBeginn = "_"
-    DBNAME = "Y:\\video\\vidarch.db"
+    # DBNAME = "Y:\\video\\vidarch.db"
+    DBNAME = "MySql auf Cebulon"
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
+    bellSound = "Windows_Error.wav"
 
 # --------------------------------------------------------------------------------
 # Rename Dialog Class
@@ -113,27 +106,28 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         scriptDir = os.path.dirname(os.path.realpath(__file__))
         self.setWindowIcon(QIcon(scriptDir + os.path.sep + Konstanten.ProgrammIcon))
 
-        self.le_vidArchPfad.setText(self.vpath)
+        self.le_vidArchPfad.setText(self.vpath) # --------------------------------
+        self.le_vidArchPfad.setDisabled(True)
 
         self.lbl_version.setText(Konstanten.VersionString)
         self.lbl_db.setText(Konstanten.DBNAME)
 
         header = self.tbl_film.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         # header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         # header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
-        self.tbl_film.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.tbl_film.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.tbl_film.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tbl_film.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        self.tbl_vorhFilm.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.tbl_vorhFilm.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.tbl_vorhFilm.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tbl_vorhFilm.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         header = self.tbl_vorhFilm.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
 
         header = self.tbl_film.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         #header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         #header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
@@ -180,8 +174,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         filmname = self.le_PrepFilm.text()
         
         # self.statusMeldung("filmName = {}".format(filmname))
-        if event.key() == Qt.Key_F5:
-            if (event.modifiers() & Qt.ShiftModifier):
+        if event.key() == Qt.Key.Key_F5:
+            if (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
                 shift = True
                 if w == self.tbl_vorhFilm:
                     self.unsortVideoInArch()
@@ -189,7 +183,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                 shift = False
                 if w == self.lst_vidPfad_Base or w == self.lst_vidPfad_Sub or w == self.lst_vidPfad_Main or w == self.tbl_film:
                     self.sortVideoInArch()
-        elif event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
+        elif event.key() == Qt.Key.Key_Enter or event.key() == Qt.Key.Key_Return:
             if w == self.tbl_vorhFilm:
                 self.videoArchStart()
             elif w == self.tbl_film:
@@ -198,16 +192,16 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             #     self.sortVideoInArch()            
             elif w == self.le_vidArchPfad:
                 self.prepPfadeLaden(w.text())
-        elif event.key() == Qt.Key_F3:
+        elif event.key() == Qt.Key.Key_F3:
             if filmname > "":
                 self.videoPrepStart()
-        elif event.key() == Qt.Key_F6:            
+        elif event.key() == Qt.Key.Key_F6:            
             if filmname > "":
                 self.videoPrepRen(filmname)
-        elif event.key() == Qt.Key_F8:            
+        elif event.key() == Qt.Key.Key_F8:            
             if filmname > "":
                 self.videoPrepDel()
-        elif event.key() == Qt.Key_F2:
+        elif event.key() == Qt.Key.Key_F2:
             self.videoTechInfo()
         
         return
@@ -241,13 +235,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         else:
             self.filmliste = []
 
+
     def prepPfadeLaden(self, vdir):
-        preppfad = []
-        for root, dirs, files in os.walk(vdir):
-            for dir in dirs:
-                if dir.startswith(Konstanten.PrepPfadBeginn):
-                    preppfad.append(dir)    # Pfad merken
-            break   # nur oberste Ebene zählt
+        preppfad = leseUV(vdir)
+        # preppfad.sort()
         return preppfad
 
     @pyqtSlot()
@@ -281,12 +272,12 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.PrepReload = False
         if nr > 0:
             self.tbl_film.setSortingEnabled(True)
-            self.tbl_film.sortByColumn(0, Qt.AscendingOrder)
+            self.tbl_film.sortByColumn(0, Qt.SortOrder.AscendingOrder)
 
             if pos is None:
                 self.tbl_film.setCurrentCell(0,0)
             else:   # versuchen zu positionieren
-                lst = self.tbl_film.findItems(pos, Qt.MatchExactly)
+                lst = self.tbl_film.findItems(pos, Qt.MatchFlag.MatchExactly)
                 if len(lst) > 0:
                     self.tbl_film.setCurrentItem(lst[0])
                 else:
@@ -350,8 +341,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                                      "Film [{0}] aus dem PrepOrdner [{1}] löschen?\n\nKeine Panik!\n".format(fname, prepO) +
                                      "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
                                          self.vpath + os.sep + self.delBasket),
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes.value:
             delVideo = prepO + os.sep + fname
             delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
             nr = self.tbl_film.currentRow() + 1
@@ -388,7 +379,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         alterName = fname
         pfad = self.getCurrentPrepPath()
         neuerName, ok = QInputDialog.getText(self, 'Fim im Prep-Ordner umbenennen', 'Neuer Name:',
-                                        QLineEdit.Normal, alterName)
+                                        QLineEdit.EchoMode.Normal, alterName)
         if ok:
             neuerFullName = pfad + os.sep + neuerName
             alterFullName = pfad + os.sep + alterName
@@ -616,13 +607,13 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                 nr += 1
             break   # nur oberste Ebene zählt
         # Einträge sortieren
-        self.tbl_vorhFilm.sortItems(0, Qt.AscendingOrder)
+        self.tbl_vorhFilm.sortItems(0, Qt.SortOrder.AscendingOrder)
         self.ArchivReload = False        
         if nr > 0:
             if pos is None:
                 self.tbl_vorhFilm.setCurrentCell(0,0)
             else:   # versuchen zu positionieren
-                lst = self.tbl_vorhFilm.findItems(pos, Qt.MatchExactly)
+                lst = self.tbl_vorhFilm.findItems(pos, Qt.MatchFlag.MatchExactly)
                 if len(lst) > 0:
                     self.tbl_vorhFilm.setCurrentItem(lst[0])
                 else:
@@ -686,6 +677,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         neuerName = self.updateDialog.le_rename.text()
         neuerFullName = pfad + os.sep + neuerName
         alterFullName = pfad + os.sep + self.alterName
+        # prüfen, ob es das Ziel schon gibt
+        if os.path.exists(neuerFullName):
+            self.statusMeldung(f"Fehler! Die Datei [{neuerFullName}] existiert bereits!")
+            return
         try:
             if vidarchdb.film_umbenennen(alterFullName, neuerFullName):
                 os.rename(alterFullName, neuerFullName)
@@ -713,8 +708,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                                      "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
                                      "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
                                          self.vpath + os.sep + self.delBasket),
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes.value:
             adir = self.getCurrentArchPath()
             delVideo = adir + os.sep + fname
             delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
@@ -769,7 +764,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                                             "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
                                                                                                     zVideoTarget) +
                                             "Fehlermedlung: {0}".format(err.strerror),
-                                            QMessageBox.Ok)
+                                            QMessageBox.StandardButton.Ok)
                         self.statusMeldung("Fehler! ({})".format(err.strerror))
                         break
                     finally:
@@ -823,7 +818,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                                             "Konnte die Datei [{}] nicht nach [{}] bewegen!".format(qVideoName,
                                                                                                     zVideoTarget) +
                                             "Fehlermedlung: {0}".format(err.strerror),
-                                            QMessageBox.Ok)
+                                            QMessageBox.StandardButton.Ok)
                         self.statusMeldung("Fehler! ({})".format(err.strerror))
                         break
                     finally:
@@ -899,7 +894,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.pfadDialog.accepted.connect(lambda: self.pfadDialogOK())
         self.pfadDialog.rejected.connect(lambda: self.pfadDialogCancel())
         self.pfadDialog.le_pfad.setFocus()
-        self.pfadDialog.exec_()
+        self.pfadDialog.exec()
         return
 
     @pyqtSlot()
@@ -914,9 +909,13 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         else:
             relPfad = neuerPfad
         # print(pfad, " --> ", neuerPfad)
+        # ergänzung 2022-11-25: Backslash verhindern
+        if relPfad.index("\\") >= 0:
+            relPfad = relPfad.replace("\\", "/")
         try:
-            os.makedirs(neuerPfad, exist_ok=False)  # gibt eine Exception, wenn der Ordner schon da ist
-            vidarchdb.anlage_relpath(None, relPfad)
+            os.makedirs(neuerPfad, exist_ok=False)  # gibt sonst eine Exception, wenn der Ordner schon da ist
+            if not vidarchdb.anlage_relpath(None, relPfad):
+                self.statusbar.showMessage("DB-Fehler bei der NeuAnlage des Pfades [{}]".format(relPfad))
         except OSError as err:
             self.statusMeldung("Fehler! Kann den Ordner nicht anlegen! ({})".format(err.strerror))
             QMessageBox.Warning(self, "Fehler",
@@ -994,9 +993,11 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
                 txt = None
             return txt
 
+
     @pyqtSlot(str)
     def statusMeldung(self, meldung):
         self.statusbar.showMessage(meldung)
+
 
     def videoStart(self, video):
         '''
@@ -1008,11 +1009,44 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             os.startfile(video)
         except:
             self.statusMeldung("Fehler: Kann das Video [{}] nicht starten!".format(video))
-            beepSound(self.app)
+            bell()
         return
+
+
+    def popupNachricht(self, txt: str):        
+        bell()
+        QMessageBox.warning(self, "Achtung",
+                    txt, QMessageBox.StandardButton.Ok)
+        
+        return
+
 #
 #   Allg Funktionen
 #
+def leseUV(ordner):
+    '''
+    liest alle Unterordner eines Ordners ein
+    gibt sie als Liste relativer Ordnernamen zum Videodir zurück
+    '''
+    uvs = []
+    for root, dirs, _ in os.walk(ordner):
+        for dir in dirs:
+            # if dir.startswith(Konstanten.PrepPfadBeginn):
+            #     preppfad.append(dir)    # Pfad merken
+            if "__pycache__" in dir:
+                continue
+            pfad = root + "/" + dir
+            pfad = pfad[len(Konstanten.VideoDir)+1:]
+            pfad = pfad.replace("\\", "/")
+            uvs.append(pfad)    # Pfad merken
+        break   # nur eine Ebene zählt
+    return uvs
+
+def bell():    
+    effect = QSoundEffect()
+    effect.setSource(QUrl.fromLocalFile(Konstanten.bellSound))    
+    effect.setLoopCount(1)
+    effect.play()
 
 
 def format_size(flen: int):
@@ -1030,12 +1064,11 @@ def format_size(flen: int):
         else: # flen == 0
             return ' 0 bytes'
 
-def beepSound(app):
-    app.beep()
 
 if __name__ == '__main__':        
-    vidarchdb.defineDBName(Konstanten.DBNAME)
     app = QApplication(sys.argv)
     form = VidArchiverApp(app)
+    vidarchdb.defineDBName(Konstanten.DBNAME)
+    vidarchdb.defineAlert(form.popupNachricht)
     form.show()
-    app.exec_()
+    app.exec()

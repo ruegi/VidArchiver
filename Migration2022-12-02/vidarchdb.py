@@ -9,7 +9,7 @@ Anderungen:
     1.2     2022-11-29  try except Logik bei den Queries zugefügt
                         für eine bessere Fehlerkontrolle
               aus: https://stackoverflow.com/questions/2136739/error-handling-in-sqlalchemy
-    1.3     2022-12-02  Umstellung auf MySql    
+    
 '''
 
 from sqlalchemy import create_engine
@@ -23,25 +23,17 @@ import os.path
 import hashlib
 import sys
 from sameLinePrint import sameLinePrint
-from privat import DBZugang
 
 DBVERSION = "1.0"
-MODULVERSION = "1.2 vom 2022-12-02"
+MODULVERSION = "1.1 vom 2022-11-27"
 # DBNAME = "vidarch.db"
 # ARCHIV = "v:\\video"
-
+SQLECHO = False
 if sys.platform.lower() == "linux":
     ARCHIV = "/archiv/video"
 else:
     ARCHIV = "y:/video"
-
-# DBNAME = ARCHIV + "/vidarch.db"   # für sqlite nötig
-# mysql DB
-DBNAME = 'mysql://userid:psw@IP-Adr/DBName' # nur, um den Aufbau zu zeigen
-
-DBNAME = DBZugang.DBNAME
-DBTITEL = "MySql auf Cebulon"
-SQLECHO = False
+DBNAME = ARCHIV + "/vidarch.db"
 
 engine = None
 base = declarative_base()
@@ -104,8 +96,8 @@ class vaconfig(base):
 
 def defineDBName(db: str):
     # setzt den Namen der zu nutzenden DB
-    # global DBNAME
-    # DBNAME=db
+    global DBNAME
+    DBNAME=db
     return
 
 
@@ -118,36 +110,19 @@ def dbconnect(mustExist=True, SQLECHO=SQLECHO):
     '''
     global DBNAME, engine, conn, my_session
     
+    if mustExist:
+        if not os.path.exists(DBNAME):
+            print(f"DB [{db}] pyhsisch nicht gefunden!")
+            return False
     if engine is None:
-        if DBZugang.DBTyp == "mysql":
-            try:            
-                engine = create_engine(DBNAME, echo=SQLECHO)
-                # , future=True,
-                #                                 connect_args={'check_same_thread': False})
-                conn = engine.connect()
-                my_session = session(bind=engine)   
-                return True
-            except SQLAlchemyError as e:
-                error = str(e.orig)
-                alertApp(f"Exception bei engine connect:\n{error}")
-                return False
-        elif DBZugang.DBTyp == "sqlite":
-            if mustExist:
-                if not os.path.exists(DBNAME):
-                    print(f"DB [{DBNAME}] pyhsisch nicht gefunden!")
-                    return False
-            try:            
-                engine = create_engine('sqlite+pysqlite:///' + DBNAME, echo=SQLECHO, future=True,
-                                            connect_args={'check_same_thread': False})                
-                conn = engine.connect()
-                my_session = session(bind=engine)   
-                return True
-            except SQLAlchemyError as e:
-                error = str(e.orig)
-                alertApp(f"Exception bei engine connect:\n{error}")
-                return False
-        else:
-            alertApp(f"Ungültiger DBTyp {DBZugang.DBTyp} - Abbruch!")
+        try:
+            engine = create_engine('sqlite+pysqlite:///' + DBNAME, echo=SQLECHO, future=True,
+                                            connect_args={'check_same_thread': False})
+            conn = engine.connect()
+            my_session = session(bind=engine)   
+            return True
+        except:
+            print("Exception bei engine/conn/session-Try")
             return False
     else:
         # print("DB OK")

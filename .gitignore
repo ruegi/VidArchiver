@@ -5,6 +5,10 @@ build/
 dist/
 alt/
 alt1/
+test/
 .pylintrc
 VidArchiver.spec
 vidarch.db
+*.sql
+*.wav
+privat.py
