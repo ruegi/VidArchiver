@@ -35,12 +35,9 @@ if sys.platform.lower() == "linux":
 else:
     ARCHIV = "y:/video"
 
-# DBNAME = ARCHIV + "/vidarch.db"   # für sqlite nötig
 # mysql DB
 DBNAME = 'mysql://userid:psw@IP-Adr/DBName' # nur, um den Aufbau zu zeigen
-
 DBNAME = DBZugang.DBNAME
-DBTITEL = "MySql auf Cebulon"
 SQLECHO = False
 
 engine = None
@@ -104,6 +101,7 @@ class vaconfig(base):
 
 def defineDBName(db: str):
     # setzt den Namen der zu nutzenden DB
+    # jetzt: veraltet
     # global DBNAME
     # DBNAME=db
     return
@@ -132,6 +130,7 @@ def dbconnect(mustExist=True, SQLECHO=SQLECHO):
                 alertApp(f"Exception bei engine connect:\n{error}")
                 return False
         elif DBZugang.DBTyp == "sqlite":
+            DBNAME = ARCHIV + "/vidarch.db"   # für sqlite nötig
             if mustExist:
                 if not os.path.exists(DBNAME):
                     print(f"DB [{DBNAME}] pyhsisch nicht gefunden!")

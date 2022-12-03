@@ -36,6 +36,8 @@ from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QDialog,
 from PyQt6.QtMultimedia import QSoundEffect
 
 import vidarchdb
+from privat import DBZugang
+
 from VidArchiverPfaDialogUI import Ui_Dialog as Ui_DialogPfadNeu
 from VidArchiverRenDialogUI import Ui_Dialog as Ui_DialogRename
 # die fenster wurden mit dem qtdesigner entworfen und per pyuic6 konvertiert
@@ -57,9 +59,8 @@ class Konstanten():
     LoeschOrdner = "__del"
     ProgrammIcon = 'VidArchiver.ico'
     VersionString = "V1.1 rg 02.12.2022"
-    PrepPfadBeginn = "_"
-    # DBNAME = "Y:\\video\\vidarch.db"
-    DBNAME = "MySql auf Cebulon"
+    PrepPfadBeginn = "_"    
+    DBNAME = DBZugang.DBTitel
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
     bellSound = "Windows_Error.wav"
 
