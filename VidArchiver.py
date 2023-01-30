@@ -12,7 +12,10 @@ Anderungen:
     ------- ----------  ------------------------------------------
     1.00    2022-11-27  Umstellung auf PyQt6; 
                         Öffnung dahingehend, dass alle Video-Ordner QuellOrdner sein können
-
+    1.10    2023-01-09  Löschen Dateien der Eingangsseite angepasst:
+                            - es werden jetzt mehrere Dateien auf einmal verarbeitet
+                            - wird löschen im DelBasket durchgeführt, wird nach der Nachfrage
+                                wirklich physisch aus DB und Ordner geköscht
 '''
 
 import os
@@ -58,7 +61,7 @@ class Konstanten():
     VideoDir = "y:\\video"
     LoeschOrdner = "__del"
     ProgrammIcon = 'VidArchiver.ico'
-    VersionString = "V1.1 rg 02.12.2022"
+    VersionString = "V1.1 rg 09.01.2023"
     PrepPfadBeginn = "_"    
     DBNAME = DBZugang.DBTitel
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
@@ -215,6 +218,14 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         else:
             return(self.vpath + os.sep + self.cb_quelle.currentText())
 
+    def getCurrentRelPrepPath(self):
+        if self.cb_quelle.currentIndex() < 0:
+            return(None)
+        else:
+            return(self.cb_quelle.currentText())
+
+
+
     def getCurentPrepFilm(self):
         # vid = self.vpath + os.path.sep + str(self.cb_quelle.currentText()) + os.path.sep + self.tbl_film.item(row, col).text()
         # self.videoStart(vid)        
@@ -335,43 +346,98 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
     @pyqtSlot()
     def videoPrepDel(self):
         prepO = self.getCurrentPrepPath()
-        fname = self.getCurentPrepFilm()
-        if fname is None:
-            return
-        reply = QMessageBox.question(self, "Wirklich?",
-                                     "Film [{0}] aus dem PrepOrdner [{1}] löschen?\n\nKeine Panik!\n".format(fname, prepO) +
-                                     "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
-                                         self.vpath + os.sep + self.delBasket),
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes.value:
-            delVideo = prepO + os.sep + fname
-            delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
-            nr = self.tbl_film.currentRow() + 1
-            rc = self.tbl_film.rowCount()
-            if rc == 1:     # letzter Film wird gelöscht
-                nextFilm = None
-            else:
-                if nr >= rc:
-                    nr = 0
-                try:
-                    nextFilm = self.tbl_film.item(nr, 0).text()
-                except:
-                    nextFilm = None
+        prepOR = self.getCurrentRelPrepPath()
+        
+        pos = None
+        lstItems = self.tbl_film.selectedItems()
+        pos = lstItems[0].text()
+        i = 0
+        moved = 0
 
-            try:
-                if vidarchdb.film_umbenennen(delVideo, delTarget):
-                    os.rename(delVideo, delTarget)
+        filmListe = []
+        anzFilme = 0 
+        for itm in lstItems:
+            anzFilme += 1
+            #                if (i % 3) == 1:    # nur Item 1, 4, 7 usw sind Dateinamen
+            if itm.column() == 0:  # nur Dateinamen
+                filmListe.append(itm.text())
+                       
+        # fname = self.getCurentPrepFilm()
+        if anzFilme is None:
+            return
+        
+        if prepOR == self.delBasket:
+            reply = QMessageBox.question(self, "Wirklich?",
+                                        f"{anzFilme} Filme aus der DB und dem Archiv löschen?\n\nAchtung!\n" +
+                                        "Es wird wirklich gelöscht!",
+                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes.value:
+                for fname in filmListe:
+                    #  pysisches Löschen aus dem delBasket
+                        delVideo = prepO + os.sep + fname
+                        # delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
+                        try:
+                            if vidarchdb.film_loeschen(delVideo):
+                                # das macht vidarchdb.film
+                                pass
+                            else:
+                                self.statusMeldung("Fehler! Konnte den Film nicht löschen!")
+                        except OSError as err:
+                            self.statusMeldung("Fehler! ({})".format(err.strerror))
+                        finally:
+                            nr = self.tbl_film.currentRow() + 1
+                            rc = self.tbl_film.rowCount()
+                            if rc == 1:     # letzter Film wird gelöscht
+                                nextFilm = None
+                            else:
+                                if nr >= rc:
+                                    nr = 0
+                                try:
+                                    nextFilm = self.tbl_film.item(nr, 0).text()
+                                except:
+                                    nextFilm = None
+                            self.filmeLaden(prepO, pos=nextFilm)
+                            # self.filme_aus_Archiv_laden(pos=self.getNextTableText(self.tbl_vorhFilm, frow))
+                            self.statusMeldung(
+                                "Der Film [{0}] wurde aus dem Archiv gelöscht!".format(fname))
                 else:
-                    self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
-            except OSError as err:
-                self.statusMeldung("Fehler! ({})".format(err.strerror))
-            finally:
-                # hier mus noch etwas gezaubert werden, um nicht auf 0 zu repositionieren
-                self.filmeLaden(prepO, pos=nextFilm)
-                self.statusMeldung(
-                    "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
+                    self.statusMeldung("Löschen abgebrochen!")
         else:
-            self.statusMeldung("Löschen abgebrochen!".format(fname))
+            reply = QMessageBox.question(self, "Wirklich?",
+                                        f"{anzFilme} Filme aus dem Archiv löschen?\n\nHinweis!\n" 
+                                        "Es wird nur in dem Mülleimer [{}] verschoben!".format(
+                                            self.vpath + os.sep + self.delBasket),
+                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes.value:
+                for fname in filmListe:
+                    # in den delBasket verschieben        
+                    delVideo = prepO + os.sep + fname
+                    delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
+                    nr = self.tbl_film.currentRow() + 1
+                    rc = self.tbl_film.rowCount()
+                    if rc == 1:     # letzter Film wird gelöscht
+                        nextFilm = None
+                    else:
+                        if nr >= rc:
+                            nr = 0
+                        try:
+                            nextFilm = self.tbl_film.item(nr, 0).text()
+                        except:
+                            nextFilm = None
+                    try:
+                        if vidarchdb.film_umbenennen(delVideo, delTarget):
+                            os.rename(delVideo, delTarget)
+                        else:
+                            self.statusMeldung("Fehler! Konnte die DB nicht ändern!")
+                    except OSError as err:
+                        self.statusMeldung("Fehler! ({})".format(err.strerror))
+                    finally:
+                        # hier mus noch etwas gezaubert werden, um nicht auf 0 zu repositionieren
+                        self.filmeLaden(prepO, pos=nextFilm)
+                        self.statusMeldung(
+                            "Der Film [{0}] wurde aus dem Archiv nach [{1}] verschoben!".format(fname, delTarget))
+                else:
+                    self.statusMeldung("Löschen abgebrochen!".format(fname))
         return
 
     @pyqtSlot(str)
@@ -380,7 +446,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         alterName = fname
         pfad = self.getCurrentPrepPath()
         neuerName, ok = QInputDialog.getText(self, 'Fim im Prep-Ordner umbenennen', 'Neuer Name:',
-                                        QLineEdit.EchoMode.Normal, alterName)
+                                        QLineEdit.EchoMode.Normal, alterName)        
         if ok:
             neuerFullName = pfad + os.sep + neuerName
             alterFullName = pfad + os.sep + alterName
@@ -668,7 +734,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.updateDialog.accepted.connect(lambda: self.renameDialogOK())
         self.updateDialog.rejected.connect(lambda: self.renameDialogCancel())
         self.updateDialog.le_rename.setFocus()
-        self.updateDialog.exec_()
+        self.updateDialog.exec()
         return
 
     @pyqtSlot()
@@ -701,17 +767,24 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
 
     @pyqtSlot()
     def videoArchDel(self):
+        '''
+        verschiebt einen Film in den DelBasket oder löscht sogar physisch aus dem DelBasket heraus
+        '''
         fname = self.getCurentArchFilm()
         frow = self.tbl_vorhFilm.currentRow()
         if fname is None:
             return
+
+        adir = self.getCurrentArchPath()
+
+
+        # in den delBasket verschieben        
         reply = QMessageBox.question(self, "Wirklich?",
-                                     "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
-                                     "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
-                                         self.vpath + os.sep + self.delBasket),
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                                    "Film [{0}] aus dem Archiv löschen?\n\nKeine Panik!\n".format(fname) +
+                                    "Der Film wird nur in dem Mülleimer [{}] verschoben!".format(
+                                        self.vpath + os.sep + self.delBasket),
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes.value:
-            adir = self.getCurrentArchPath()
             delVideo = adir + os.sep + fname
             delTarget = self.vpath + os.sep + self.delBasket + os.sep + fname
             try:
@@ -729,6 +802,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         else:
             self.statusMeldung("Löschen abgebrochen!".format(fname))
         return
+
 
     @pyqtSlot()
     def sortVideoInArch(self):
@@ -1032,14 +1106,14 @@ def leseUV(ordner):
     uvs = []
     for root, dirs, _ in os.walk(ordner):
         for dir in dirs:
-            # if dir.startswith(Konstanten.PrepPfadBeginn):
-            #     preppfad.append(dir)    # Pfad merken
-            if "__pycache__" in dir:
-                continue
-            pfad = root + "/" + dir
-            pfad = pfad[len(Konstanten.VideoDir)+1:]
-            pfad = pfad.replace("\\", "/")
-            uvs.append(pfad)    # Pfad merken
+            if dir.startswith(Konstanten.PrepPfadBeginn):
+                # preppfad.append(dir)    # Pfad merken
+                if "__pycache__" in dir:
+                    continue
+                pfad = root + "/" + dir
+                pfad = pfad[len(Konstanten.VideoDir)+1:]
+                pfad = pfad.replace("\\", "/")
+                uvs.append(pfad)    # Pfad merken
         break   # nur eine Ebene zählt
     return uvs
 

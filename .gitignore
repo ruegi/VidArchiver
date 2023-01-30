@@ -12,3 +12,7 @@ vidarch.db
 *.sql
 *.wav
 privat.py
+*.bat
+*.spec
+*.xcf
+
