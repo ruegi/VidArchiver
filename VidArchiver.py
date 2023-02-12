@@ -7,6 +7,13 @@ Vidarchiver.py mit pyqt6
 ermöglicht es, die Videos in den Prep-Verzeichnissen _in1..._in10
 in die passenden VideoArchivOrdner einzusortieren
 
+die Bezeichnungen der 3 ordnerEbenen der Mitte des Fensters sind:
+oben:   'Main'  (enthält Musik, Sachfilm, Schule, Unterhaltung)
+mittig: 'Sub'   (enthält je Main-ordner UnterOrdner)
+unten:  'Base'  (enthält evtl. UnterOrdner zu Sub-Ordnern)
+                Um keine weiteren Fenster zu öffnen, war es nötig, in 'Base' auch
+                weitere Unterordner mit '/' getrennt einzuführen, z.B.
+
 Anderungen:
     Version Datum       Inhalt
     ------- ----------  ------------------------------------------
@@ -16,6 +23,8 @@ Anderungen:
                             - es werden jetzt mehrere Dateien auf einmal verarbeitet
                             - wird löschen im DelBasket durchgeführt, wird nach der Nachfrage
                                 wirklich physisch aus DB und Ordner geköscht
+    1.20    2023-02-12  Rename & Delete von Ordnern eingebaut, Buttons F2 tech.Info eingebaut;
+                        Fehler beim Rename von Groß/Klein-Schreibung behoben
 '''
 
 import os
@@ -36,7 +45,8 @@ from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                              QInputDialog, QLabel, QLineEdit, QMainWindow,
                              QMessageBox, QPushButton, QTableWidgetItem,
                              QVBoxLayout, QWidget)
-from PyQt6.QtMultimedia import QSoundEffect
+# from PyQt6.QtMultimedia import QSoundEffect
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 import vidarchdb
 from privat import DBZugang
@@ -61,11 +71,12 @@ class Konstanten():
     VideoDir = "y:\\video"
     LoeschOrdner = "__del"
     ProgrammIcon = 'VidArchiver.ico'
-    VersionString = "V1.1 rg 09.01.2023"
+    VersionString = "V1.2 rg 12.02.2023"
     PrepPfadBeginn = "_"    
     DBNAME = DBZugang.DBTitel
     FilmInfo = 'c:\\Program Files\\FilmDetails\\FilmDetails.exe'
-    bellSound = "Windows_Error.wav"
+    # bellSound = "Windows_Error.wav"
+    bellSound = "warning.mp3"
 
 # --------------------------------------------------------------------------------
 # Rename Dialog Class
@@ -150,10 +161,11 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.cb_quelle.currentIndexChanged.connect(self.quelleLaden)
         self.btn_showPrepVideo.clicked.connect(self.videoPrepStart)
         self.lst_vidPfad_Main.currentRowChanged.connect(self.setPath_Main)
+        self.lst_vidPfad_Main.doubleClicked.connect(self.sortVideoInArch)        
+        self.lst_vidPfad_Sub.doubleClicked.connect(self.sortVideoInArch)
+        self.lst_vidPfad_Sub.clicked.connect(self.setPath_Sub)
         self.lst_vidPfad_Sub.currentRowChanged.connect(self.setPath_Sub)
         self.lst_vidPfad_Base.currentRowChanged.connect(self.setPath_Base)
-        self.lst_vidPfad_Main.doubleClicked.connect(self.sortVideoInArch)
-        self.lst_vidPfad_Sub.doubleClicked.connect(self.sortVideoInArch)
         self.lst_vidPfad_Base.doubleClicked.connect(self.sortVideoInArch)
         self.tbl_film.itemSelectionChanged.connect(self.videoPrepDetail)
         self.tbl_film.cellActivated.connect(self.videoPrepStart)
@@ -167,7 +179,11 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.btn_linkVideo.clicked.connect(self.sortVideoInArch)
         self.btn_unlinkVideo.clicked.connect(self.unsortVideoInArch)
         ### self.lst_vidPfad.doubleClicked.connect(self.sortVideoInArch)
-        self.btn_pfadNeu.clicked.connect(self.neuerArchPfad)        
+        self.btn_pfadNeu.clicked.connect(self.neuerArchPfad)
+        self.btn_pfadRen.clicked.connect(self.renArchPfad)
+        self.btn_pfadDel.clicked.connect(self.delArchPfad)
+        self.btn_QInfo.clicked.connect(self.QTechInfo)
+        self.btn_ZInfo.clicked.connect(self.ZTechInfo)
         self.videoPrepDetail()
         self.videoArchDetail()
 
@@ -491,7 +507,8 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             return (None)
         else:
             return(self.tbl_vorhFilm.item(row, 0).text())
-   
+
+
     def setCurrentArchPath(self, pos):
         ''' 
         setzt den aktuell eingestellten Pfad der Archiv-Listen auf 'pos'
@@ -538,31 +555,31 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
             return
         aMain = str(itm.text())
         # aMain = str(self.lst_vidPfad_Main.item(newrow).text())
-        if self.aktMain == aMain:   # nothing 2 do
-            return
-        else:                        
-            self.aktMain = aMain            
-            self.vidSub_fuellen()
-            self.vidBase_fuellen()
-            self.filme_aus_Archiv_laden()
+        # if self.aktMain == aMain:   # nothing 2 do
+        #     return
+        # else:                        
+        self.aktMain = aMain            
+        self.vidSub_fuellen()
+        self.vidBase_fuellen()
+        self.filme_aus_Archiv_laden()
         # print(self.aktMain, self.aktSub, self.aktBase)
         return
 
     def setPath_Sub(self):
         itm = self.lst_vidPfad_Sub.currentItem()
-        if itm is None:
+        if itm is None:   
             self.aktSub = ""
             self.aktBase = ""            
         else:
-            # print("setPath_Sub", itm)
             aSub = str(itm.text())
-            if self.aktSub == aSub:   # nothing 2 do
-                return
-            else:
-                self.aktSub = aSub
-                self.vidBase_fuellen()            
-        self.filme_aus_Archiv_laden()
-        # print(self.aktMain, self.aktSub, self.aktBase)
+            self.aktSub = aSub
+            # print(aSub)
+            # if self.aktSub == aSub:   # nothing 2 do
+            #     return
+            # else:        
+            self.vidBase_fuellen()
+            self.filme_aus_Archiv_laden()
+            # print(self.aktMain, self.aktSub, self.aktBase)
         return
 
     def setPath_Base(self):
@@ -637,14 +654,10 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         '''
         self.lst_vidPfad_Base.clear()
         self.aktBase = ""
-        # print("-"*80)        
-        # print("-"*80)
         for lst in self.archivListe:
             if len(lst) > 3 and lst[1] == self.aktMain and lst[2] == self.aktSub:
-                baseDir = "\\".join(x for x in lst[3:])
+                baseDir = "/".join(x for x in lst[3:])
                 self.lst_vidPfad_Base.addItem(baseDir)
-                # if self.aktBase == "":
-                #     self.aktBase = baseDir
         return
 
     @pyqtSlot()
@@ -731,39 +744,42 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.alterName = fname
         self.updateDialog = renameDialog()
         self.updateDialog.le_rename.setText(self.alterName)
-        self.updateDialog.accepted.connect(lambda: self.renameDialogOK())
-        self.updateDialog.rejected.connect(lambda: self.renameDialogCancel())
+        self.updateDialog.accepted.connect(lambda: self.renameArchivDialogOK())
+        self.updateDialog.rejected.connect(lambda: self.renameArchivDialogCancel())
         self.updateDialog.le_rename.setFocus()
         self.updateDialog.exec()
         return
 
     @pyqtSlot()
-    def renameDialogOK(self):
-        # pfad = self.lst_vidPfad.currentItem().text()
+    def renameArchivDialogOK(self):        
         pfad = self.getCurrentArchPath()
         neuerName = self.updateDialog.le_rename.text()
         neuerFullName = pfad + os.sep + neuerName
         alterFullName = pfad + os.sep + self.alterName
+        # print(f"{neuerFullName =}, \n{alterFullName =}")
         # prüfen, ob es das Ziel schon gibt
-        if os.path.exists(neuerFullName):
-            self.statusMeldung(f"Fehler! Die Datei [{neuerFullName}] existiert bereits!")
-            return
+        #Achtung! Windows unterscheidet Groß/Kleischreibung nicht!
+        if not neuerFullName.lower() == alterFullName.lower():
+            if os.path.exists(neuerFullName):
+                self.statusMeldung(f"Fehler! Die Datei [{neuerFullName}] existiert bereits!")
+                return
         try:
             if vidarchdb.film_umbenennen(alterFullName, neuerFullName):
                 os.rename(alterFullName, neuerFullName)
+                self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))
             else:
                 self.statusMeldung("Fehler! Konnte die DB nicht ändern!")            
         except OSError as err:
             self.statusMeldung("Fehler! ({})".format(err.strerror))
         finally:
-            self.statusbar.showMessage("Video umbenannt in: {}".format(neuerName))
-            # print(neuerName)
             self.filme_aus_Archiv_laden(pos=neuerName)
         return
 
+
     @pyqtSlot()
-    def renameDialogCancel(self):
+    def renameArchivDialogCancel(self):
         self.statusbar.showMessage("renameDialog Cancel: {}".format(self.updateDialog.le_rename.text()))
+
 
     @pyqtSlot()
     def videoArchDel(self):
@@ -1007,36 +1023,191 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
         self.statusbar.showMessage("Pfad-Dialog Cancel: {}".format(self.pfadDialog.le_pfad.text()))
         return
 
+
+    @pyqtSlot()
+    def renArchPfad(self):
+        '''
+        erzeugt einen Dialog für das Umbenennen des aktuellen Archiv-UnterOrdners
+        :return: ---
+        '''
+        self.renEbene = "Base"
+        self.pfad2chg = ""
+        self.aktPfad = ""
+        # zunächst die Ebene bestimmen
+        if self.aktBase:
+            self.aktPfad = self.aktMain + os.sep + self.aktSub + os.sep + self.aktBase
+            self.pfad2chg = self.aktBase
+            self.renEbene = "Base"
+        elif self.aktSub:
+            self.aktPfad = self.aktMain + os.sep + self.aktSub
+            self.pfad2chg = self.aktSub
+            self.renEbene = "Sub"
+        else:
+            self.aktPfad = self.aktMain
+            self.pfad2chg = self.aktMain
+            self.renEbene = "Main"
+                
+        # print(f"{self.renEbene}, {self.aktPfad =}, {self.pfad2chg =}")
+
+        self.alterName = self.pfad2chg
+        self.pfadDialog = pfaDialog()
+        self.pfadDialog.le_pfad.setText(self.alterName)
+        self.pfadDialog.setWindowTitle("UnterOrdner umbenennen")
+        self.pfadDialog.groupBox.setTitle(f"[{self.aktPfad}] umbenennen!")
+        self.pfadDialog.accepted.connect(lambda: self.pfadRenDialogOK())
+        self.pfadDialog.rejected.connect(lambda: self.pfadRenDialogCancel())
+        self.pfadDialog.le_pfad.setFocus()
+        self.pfadDialog.show()
+
+    @pyqtSlot()
+    def pfadRenDialogOK(self):
+        '''
+        benennt den Base-Ordner um
+        '''
+        newPfad = self.pfadDialog.le_pfad.text()
+        oldPfad = self.aktBase
+        if newPfad == oldPfad:
+            self.statusbar.showMessage("Keine Änderung, kein umbenennen!")
+            return
+
+        relPfad = self.aktMain + os.sep + self.aktSub
+        pfad = Konstanten.VideoDir + os.sep + relPfad
+        alterPfad = pfad + os.sep + oldPfad
+        neuerPfad = pfad + os.sep + newPfad
+
+        relAltPfad = relPfad + os.sep + oldPfad
+        relNeuPfad = relPfad + os.sep + newPfad
+
+        # ergänzung 2022-11-25: Backslash verhindern
+        if relPfad.index("\\") >= 0:
+            relPfad = relPfad.replace("\\", "/")
+        # es könne mehrere Einträge der Tabelle vapfad betroffen sein,
+        # obwohl nur ein Pfad verändert wird!
+        try:
+            os.rename(alterPfad, neuerPfad)
+            if not vidarchdb.rename_relpath(relAltPfad, relNeuPfad):
+                self.statusbar.showMessage("DB-Fehler bei der NeuAnlage des Pfades [{}]".format(relPfad))
+                os.rename(neuerPfad, alterPfad) # reparieren!
+                # time.sleep(0.300)
+                self.ladeVidArchPfade(pos=alterPfad)
+                QMessageBox.Warning(self, "Fehler",
+                        "Der Ordner [{neuerPfad}} konnte nicht angelegt werden\n" +
+                            f"FehlerMeldung:\nDB-Fehler: [{vidarchdb.DBError}]", QMessageBox.Close)            
+                return
+            else:
+                self.ladeVidArchPfade(pos=neuerPfad)
+                self.statusbar.showMessage("Neuen Pfad angelegt: {}".format(neuerPfad))
+        except OSError as err:
+            self.statusMeldung("Fehler! Kann den Ordner nicht anlegen! ({})".format(err.strerror))
+            QMessageBox.Warning(self, "Fehler",
+                                    "Der Ordner [{}} konnte nicht angelegt werden\n\n".format(neuerPfad) +
+                                     "FehlerMeldung: [{}]".format(err.strerror), QMessageBox.Close)            
+        return
+
+    @pyqtSlot()
+    def pfadRenDialogCancel(self):
+        self.statusbar.showMessage("Pfad umbenennen - Cancel: {}".format(self.pfadDialog.le_pfad.text()))
+        return
+
+    @pyqtSlot()
+    def delArchPfad(self):
+        # löscht einen Archiv Ordner nur. wenn er leer ist
+        relPfad = self.aktMain
+        if self.aktSub:
+            relPfad += os.sep + self.aktSub
+            if self.aktBase:
+                relPfad += os.sep + self.aktBase
+        pfad = Konstanten.VideoDir + os.sep + relPfad
+        
+        if vidarchdb.delete_relpath(relPfad, Test=True):
+            try:
+                err = ""
+                os.rmdir(pfad)
+            except FileNotFoundError:
+                err = f"Konnte den Ordner {pfad} nicht löschen - os.FileNotFound"
+            except OSError:
+                err = f"Konnte den Ordner {pfad} nicht löschen - nicht leer(os.OSError)"
+            finally:
+                if err:
+                    QMessageBox.Warning(self, "Fehler",\
+                                    "Der Ordner [{pfad}} konnte nicht gelöscht werden\n\n" +\
+                                     f"FehlerMeldung: [{err}]", QMessageBox.Close)
+                else:
+                    ok = vidarchdb.delete_relpath(relPfad, Test=False)
+                    if not ok:
+                        os.mkdir(pfad) # Pfad wieder in OS erzeugen
+                        QMessageBox.Warning(self, "Fehler",\
+                                        "Der Ordner [{pfad}} konnte nicht gelöscht werden\n\n" +\
+                                        f"FehlerMeldung: [{vidarchdb.DBError}]", QMessageBox.Close)
+                return
+      
+
+
+
+    @pyqtSlot()
+    def ZTechInfo(self):
+        '''
+        zeigt die tech Info des ZielFilms
+        '''
+        # w = self.focusWidget()
+        # if not w == self.tbl_vorhFilm:
+        #     self.tbl_vorhFilm
+        pfad = self.getCurrentArchPath()
+        fname = self.getCurentArchFilm()
+        fname = pfad + os.path.sep + fname
+        self.showTechInfo(fname)
+        return
+
+    @pyqtSlot()
+    def QTechInfo(self):
+        '''
+        zeigt die tech Info des QuellFilms
+        '''
+        # w = self.focusWidget()
+        # if not w == self.tbl_vorhFilm:
+        #     self.tbl_vorhFilm
+        pfad = self.getCurrentPrepPath()
+        fname = self.getCurentPrepFilm()
+        fname = pfad + os.path.sep + fname
+        self.showTechInfo(fname)
+        return
+
+
+
     @pyqtSlot()
     def videoTechInfo(self):
+        # wird vom Button F2 angesteuert
         # zeigt die technischen Video-Daten eines Films im Focus, benutzt dazu ffmpeg
         # ergänzt 2021-02-03 rg
-        # 
+        #         
         self.statusMeldung(" TechInfo ... ")
         w = self.focusWidget()
         if w == self.tbl_vorhFilm:
-            pfad = self.getCurrentArchPath()
-            fname = self.getCurentArchFilm()
-            fname = pfad + os.path.sep + fname
+            self.ZTechInfo()
+            # pfad = self.getCurrentArchPath()
+            # fname = self.getCurentArchFilm()
+            # fname = pfad + os.path.sep + fname
         elif w == self.tbl_film:
-            pfad = self.getCurrentPrepPath()
-            fname = self.getCurentPrepFilm()
-            fname = pfad + os.path.sep + fname
+            self.QTechInfo()
+            # pfad = self.getCurrentPrepPath()
+            # fname = self.getCurentPrepFilm()
+            # fname = pfad + os.path.sep + fname
         else:
-            fname = None
-
-        if fname is None:
-            self.statusMeldung(" TechInfo ... :-( !Keinen Film ausgewählt")
             return
-        else:
-            # FilmDetails.DlgMain(fname)              # We set the form to be our App (design)
-            self.statusMeldung(f"Lade FilmDetails für {fname} . . .")
-            QApplication.processEvents()
-            proc = Popen([Konstanten.FilmInfo, fname] )
-            proc.wait()
-            self.statusMeldung("")
+    
 
-
+    def showTechInfo(self, fname):
+        '''
+        show the text Info in a separate process
+        Parameter:
+        fname: full path to the film
+        '''
+        self.statusMeldung(f"Lade FilmDetails für {fname} . . .")
+        QApplication.processEvents()
+        proc = Popen([Konstanten.FilmInfo, fname] )
+        proc.wait()
+        self.statusMeldung("")
+        return
 
     # ----------------------------------------------------------------------------------------------------------------
     # Funktionen
@@ -1090,8 +1261,7 @@ class VidArchiverApp(QMainWindow, Ui_MainWindow):
 
     def popupNachricht(self, txt: str):        
         bell()
-        QMessageBox.warning(self, "Achtung",
-                    txt, QMessageBox.StandardButton.Ok)
+        QMessageBox.warning(self, "Achtung", txt, QMessageBox.StandardButton.Ok)
         
         return
 
@@ -1118,10 +1288,18 @@ def leseUV(ordner):
     return uvs
 
 def bell():    
-    effect = QSoundEffect()
-    effect.setSource(QUrl.fromLocalFile(Konstanten.bellSound))    
-    effect.setLoopCount(1)
-    effect.play()
+    # effect = QSoundEffect()
+    # effect.setSource(QUrl.fromLocalFile(Konstanten.bellSound))
+    # effect.setVolume(0.25)
+    # effect.setLoopCount(2)
+    # effect.play()
+    return
+    # player = QMediaPlayer()
+    # audio_output = QAudioOutput()
+    # player.setAudioOutput(audio_output)
+    # player.setSource(QUrl.fromLocalFile(Konstanten.bellSound))
+    # audio_output.setVolume(50)
+    # player.play()
 
 
 def format_size(flen: int):
@@ -1145,5 +1323,5 @@ if __name__ == '__main__':
     form = VidArchiverApp(app)
     vidarchdb.defineDBName(Konstanten.DBNAME)
     vidarchdb.defineAlert(form.popupNachricht)
-    form.show()
+    form.show()    
     app.exec()

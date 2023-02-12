@@ -11,8 +11,9 @@ VidArchiver.spec
 vidarch.db
 *.sql
 *.wav
+*.mp3
 privat.py
 *.bat
 *.spec
 *.xcf
-
+.qt*

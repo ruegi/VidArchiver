@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'VidArchiverUI.ui'
+# Form implementation generated from reading ui file 'd:\DEV\Py\VidArchiver\VidArchiverUI.ui'
 #
 # Created by: PyQt6 UI code generator 6.4.0
 #
@@ -19,7 +19,7 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
         MainWindow.setSizePolicy(sizePolicy)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("VidArchiver.ico"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        icon.addPixmap(QtGui.QPixmap("d:\\DEV\\Py\\VidArchiver\\VidArchiver.ico"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -350,13 +350,3 @@ class Ui_MainWindow(object):
         self.label_2.setText(_translate("MainWindow", "Video-Archiver"))
         self.lbl_version.setText(_translate("MainWindow", "VersionsInfo"))
         self.lbl_db.setText(_translate("MainWindow", "DB-Info"))
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    sys.exit(app.exec())

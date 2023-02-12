@@ -37,13 +37,18 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>60</y>
+     <y>50</y>
      <width>581</width>
-     <height>51</height>
+     <height>61</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
    <property name="title">
-    <string>Neuen neuen Unterordner zu </string>
+    <string>Neuen Unterordner zu </string>
    </property>
    <widget class="QLineEdit" name="le_pfad">
     <property name="geometry">
@@ -51,7 +56,7 @@
       <x>10</x>
       <y>20</y>
       <width>561</width>
-      <height>20</height>
+      <height>31</height>
      </rect>
     </property>
    </widget>

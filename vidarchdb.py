@@ -26,9 +26,11 @@ Anderungen:
                         - die globale Variable conn wurde eliminiert; es wird überall mit ORM 
                         und damit mit 'session' gearbeitet
     1.6     2023-01-30  Säuberung des Codes;
+    1.7     2023-02-12  Änderung des Feldes vainhalt.dateiName auf CaseInsensitive;
+                        Dadurch kann auch Groß/Kleinschreibung in den Ordnernamen geändert werden
 '''
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, dialects
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import Integer, String, Text
@@ -64,6 +66,7 @@ SQLECHO = False
 engine = None
 base = declarative_base()
 Session = sessionmaker()
+DBError  = ""   # ggf. für eine Fehlermeldung
 
 # eine einfache Alert-Strategie:
 # das einbindende Programm kann per 'defineAlert' eine eigene Alert-Routine zur Verfügung
@@ -95,6 +98,7 @@ class vainhalt(base):
     id = Column(Integer, primary_key=True, autoincrement=True)    
     # relPath = Column(String(240), nullable=False)
     relPath = Column(Integer, ForeignKey("vapfad.id"), nullable=False)
+    # dateiName = Column(Text, dialects.mysql.VARCHAR(1024, collation='utf8_bin'), nullable=False)
     dateiName = Column(Text, nullable=False)
     dateiExt = Column(Text, nullable=True)
     md5 = Column(String(32), nullable=True)    # 5d65db39edca7fceb49fb9f978576fdb
@@ -105,6 +109,9 @@ class vainhalt(base):
         self.dateiName = dateiName
         self.dateiExt = dateiExt
         self.md5 = md5
+
+    def __str__(self) -> str:
+        return f"{self.relPath =}\n{self.dateiName}\n{self.md5}"
 
 class vapfad(base):
     __tablename__ = 'vapfad'
@@ -251,17 +258,17 @@ def film_merken(relPath, datei, ext, md5, verbose=True):
                 session.commit()
                 retval = "NEU >>> "
                 if verbose:
-                    print(f"  >>> OK! Film {relPath}\{datei} in der DB neu angelegt!")
+                    alertApp(f"  >>> OK! Film {relPath}\{datei} in der DB neu angelegt!")
             else: # nur Update des FilmNamens
                 f.dateiName = datei
                 session.commit()
                 retval = "UPD >>> "
                 if verbose:
-                    print(f"  >>> OK! FilmName {relPath}\{datei} in der DB aktualisiert!")
+                    alertApp(f"  >>> OK! FilmName {relPath}\{datei} in der DB aktualisiert!")
         else:  # Film schon vorhanden, alles ok
             retval = "OK  >>> "
             if verbose:
-                print(f"  >>> OK! Film {relPath}\{datei} in der DB gefunden!")
+                alertApp(f"  >>> OK! Film {relPath}\{datei} in der DB gefunden!")
 
     # end 'with Session...'
 
@@ -320,25 +327,45 @@ def get_config(key: str):
         else:
             return cnf.value
 
+def finde_relPath(relPath):
+    # sucht den relPath in vapath und gibt die id oder None zurück
+    if "\\" in relPath:
+        relp = relPath.replace("\\", "/")
+    else:
+        relp = relPath
+
+    with Session(bind=engine) as session:
+        try:
+            q = session.query(vapfad).filter(vapfad.relPath == relp)
+            pa = q.first()
+            if pa is None:  # gibt es noch nicht
+                return None
+            else:
+                return pa.id
+        except SQLAlchemyError as e:     # hier sollte es nie hinkommen...
+            DBError = str(e.orig)
+            return None            
+    # end 'with session...'            
+
+
 
 def anlage_relpath(session, relPath):
     # legt einen neuen relPath an
     # und gibt die id zurück
-    # ist session None, so wird eine eigene Session definiert
+    # --> session ist veraltet
     # sonst wird session verwendet
     # relPath muss wirklich relativ zum ArchivPfad sein!
-    global engine   #, conn
+    global engine, Session
 
     if not dbconnect():
         return None
-    if not session:
-        session = Session(bind=engine)
 
     if "\\" in relPath:
         relp = relPath.replace("\\", "/")
     else:
         relp = relPath
-    with session:
+
+    with Session(bind=engine) as session:
         q = session.query(vapfad).filter(vapfad.relPath == relp)
         pa = q.first()
         if pa is None:  # gibt es noch nicht
@@ -355,6 +382,90 @@ def anlage_relpath(session, relPath):
     # end 'with session...'            
 
     return id
+
+
+def rename_relpath(oldRelPath, newRelPath):
+    # umbenennen der alten relPath-Sätze
+    # und gibt True beu Erfolg zurück
+    # relPath muss wirklich relativ zum ArchivPfad sein!
+    global engine
+
+    if not dbconnect():
+        return None
+
+    #  in der DB wird nur "/" als Verzeichnistrenner gespeichert
+    if "\\" in newRelPath:
+        newRelp = newRelPath.replace("\\", "/")
+    else:
+        newRelp = newRelPath
+
+    if "\\" in oldRelPath:
+        oldRelp = oldRelPath.replace("\\", "/")
+    else:
+        oldRelp = oldRelPath
+
+    ok = False
+    oLen = len(oldRelp)
+    with Session(bind=engine) as session:
+        try:
+            # alle Pfadeinträge nehmen, die mit 'oldRelp' beginnen
+            q = session.query(vapfad).filter(vapfad.relPath.ilike(oldRelp+"%"))
+            if q is None:  # gibt es nicht
+                DBError = f"Kein Eintrag mit {oldRelp} gefunden!"
+                return None
+            # alle betroffenen Sätze updaten    
+            for pa in q:                
+                id = pa.id
+                # print(id, pa.relPath, "==>", end="")
+                pa.relPath = newRelp + pa.relPath[oLen:]
+                # print(pa.relPath)
+                
+            session.commit()
+            ok = True
+
+        except SQLAlchemyError as e:     # hier sollte es nie hinkommen...
+            DBError = str(e.orig)
+            session.rollback()
+            id = None
+    # end 'with session...'
+    return ok
+
+
+def delete_relpath(relPath, Test=True):
+    # löscht einen relPath, wenn er leer ist und Test=False
+    # gibt beit Erfolg True zurück, sonst False
+    # und füllt dann den DBError
+    global engine, Session
+
+    if not dbconnect():
+        return None
+
+    #  in der DB wird nur "/" als Verzeichnistrenner gespeichert
+    if "\\" in relPath:
+        relPath = relPath.replace("\\", "/")
+    pathId = finde_relPath(relPath)
+    if not pathId:
+        DBError = f"der Ordner {relPath} konnte nicht in der DB gefunden werden!"
+        return False
+
+    ok = False
+    with Session(bind=engine) as session:
+        try:
+            qx = session.query(vainhalt).filter(vainhalt.relPath == id)
+            if qx is None:
+                if Test:
+                    return True
+                else:
+                    # jetzt kann gelöscht werden
+                    qo = session.get(vapfad, pathId)
+                    session.delete(qo)
+                    session.commit()
+                    return True
+        except SQLAlchemyError as e:
+            DBError = str(e.orig)
+            session.rollback()
+            return False
+    # end 'with session...'
 
 
 def export_CSV(name="vidarch.csv"):    
@@ -513,7 +624,7 @@ def film_umbenennen(alterName, neuerName):
     # Volle Dateinamen mit pfaden!
     global engine, Session
     if not dbconnect():
-        print("FEHLER! Film umbenennen: kann die DB nicht verbinden!")
+        alertApp("FEHLER! Film umbenennen: kann die DB nicht verbinden!")
         return False
     
     # zuerst die quell- und Zielpfade bestimmen
@@ -524,59 +635,68 @@ def film_umbenennen(alterName, neuerName):
 
     # dann die id der Pfade bestimmen
     qid = _get_pfad_id(quellOrdner)
-    zid = _get_pfad_id(zielOrdner)
+    if quellOrdner == zielOrdner:
+        zid = qid
+    else:
+        zid = _get_pfad_id(zielOrdner)
+    
+    # print(zid, qid)
 
     with Session(bind=engine) as session:
         # prüfen, ob es das Ziel bereits in der DB gibt
+        gibts_Nicht = True
         try:
+            # print(f"{qtail =}\n{ztail =}")
             q = session.query(vainhalt).filter(and_(vainhalt.relPath==zid, vainhalt.dateiName==ztail))
-            res = q.first()
+            if q.count() == 0:
+                # print("Query ist leer!")
+                pass
+            else:                
+                for satz in q:
+                    # print(str(satz))       
+                    if satz.dateiName == ztail:  # dieser Vergleich ist nötig, weil die query case-insensitive ist
+                        gibts_Nicht = False
+                        break            
         except SQLAlchemyError as e:
             error = str(e.orig)
             x = f"Query, ob Ziel existiert, meldet Fehler: {error}"
             alertApp(x)
             return False
+    # ende with session (suche)
 
-        if res is None: # gibt es noch nicht, also los
-            try:
+    if gibts_Nicht: # gibt es noch nicht, also los
+        gefunden = False        
+        with Session(bind=engine) as session:
+            try:    # zunächst den alten Satz suchen                
                 q1 = session.query(vainhalt).filter(and_(vainhalt.relPath==qid, vainhalt.dateiName==qtail))
-                res = q1.first()
+                for res in q1:
+                    if res.dateiName == qtail:
+                        # dieser Satz muss geändert werden
+                        try:
+                            res.relPath = zid
+                            res.dateiName = ztail
+                            session.commit()
+                            gefunden = True
+                            break
+                        except SQLAlchemyError as e:
+                            error = str(e.orig)
+                            x = f"Update des DB-Satzes, meldet Fehler: {error}"
+                            alertApp(x)
+                            return False            
+                # end for res ...
+                return gefunden
+
             except SQLAlchemyError as e:
                 error = str(e.orig)
                 x = f"Query, ob Quelle existiert, meldet Fehler: {error}"
                 alertApp(x)
                 return False
-            
-            if res:
-                # Löschen des Satzes
-                try:
-                    res.relPath = zid
-                    res.dateiName = ztail
-                    session.commit()
-                except SQLAlchemyError as e:
-                    error = str(e.orig)
-                    x = f"Update des DB-Satzes, meldet Fehler: {error}"
-                    alertApp(x)
-                    return False            
-                return True
-            else:
-                alert = "FEHLER!\n"
-                alert += "-"*70 + "\n"
-                alert += "Die Quelle existiert als Datei,\n"
-                alert += "kann die Quelle in der DB aber nicht finden,\n"
-                alert += " daher keine DB Operation!\n"
-                alert += "-"*70 + "\n"
-                alert += f"alterName: {alterName}\n"
-                alert += f"neuerName: {neuerName}\n"
-                alert += f"Quelle relPath: {qid}\n"
-                alert += f"Quelle DateiName: {qtail}\n"
-                alert += f"Ziel relPath: {zid}\n"
-                alert += f"Ziel DateiName: {ztail}\n"
-                alert += "-"*70 + "\n"
-                alertApp(alert)     
-                return False
-        else:
-            # falls die quelle nicht (mehr) existiert, ist alles in Ordnung
+        # end with ...
+
+    else: # gibts_nicht = False
+        # das Ziel gibt es schon!
+        # falls die quelle nicht (mehr) existiert, ist alles in Ordnung
+        with Session(bind=engine) as session:
             try:
                 q = session.query(vainhalt).filter(and_(vainhalt.relPath==qid, vainhalt.dateiName==qtail))
                 res = q.first()
@@ -585,15 +705,15 @@ def film_umbenennen(alterName, neuerName):
                 x = f"Query des Quell-Satzes meldet Fehler: {error}"
                 alertApp(x)
                 return False
-
             if res is None:
                 return True # Alles OK
             else:
                 alertApp("DB-Fehler! Das Ziel gibt es schon in der DB!")        
                 return False
+        # end 'with Session...'
+    # else
+    
 
-    # end 'with Session...'
-    return
 
 def film_loeschen(filmName):
     '''
@@ -606,7 +726,7 @@ def film_loeschen(filmName):
     # Volle Dateinamen mit pfaden!
     global engine   #, conn
     if not dbconnect():
-        print("FEHLER! Film löschen: kann die DB nicht verbinden!")
+        alertApp("FEHLER! Film löschen: kann die DB nicht verbinden!")
         return False
     
     # zuerst den Pfad bestimmen
@@ -690,7 +810,7 @@ def getFilmMD5(relPfad: str, FilmName: str)->str:
     # oder "", wenn nichts gefunden wurde,
     # oder none bei Connect-Fehler
     if not dbconnect():
-        print("FEHLER! Film-MD5 finden: kann die DB nicht verbinden!")
+        alertApp("FEHLER! Film-MD5 finden: kann die DB nicht verbinden!")
         return None
     with Session(bind=engine) as session:
         try:

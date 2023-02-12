@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'VidArchiverPfaDialogUI.ui'
+# Form implementation generated from reading ui file 'd:\DEV\Py\VidArchiver\VidArchiverPfaDialogUI.ui'
 #
 # Created by: PyQt6 UI code generator 6.4.0
 #
@@ -14,7 +14,7 @@ class Ui_Dialog(object):
         Dialog.setObjectName("Dialog")
         Dialog.resize(657, 174)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("VidArchiver.ico"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        icon.addPixmap(QtGui.QPixmap("d:\\DEV\\Py\\VidArchiver\\VidArchiver.ico"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         Dialog.setWindowIcon(icon)
         self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
         self.buttonBox.setGeometry(QtCore.QRect(50, 120, 571, 32))
@@ -40,13 +40,3 @@ class Ui_Dialog(object):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Neuen Unterordner anlegen ..."))
         self.groupBox.setTitle(_translate("Dialog", "Neuen Unterordner zu "))
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    Dialog = QtWidgets.QDialog()
-    ui = Ui_Dialog()
-    ui.setupUi(Dialog)
-    Dialog.show()
-    sys.exit(app.exec())
