@@ -28,6 +28,7 @@ from pathlib import Path, PurePath
 from humanBytes import HumanBytes
 import hashlib
 import vidarchdb
+from datetime import datetime
 
 # die Alert-Logik der vidaArchDB abschalten
 def stummerAlert(txt):
@@ -53,17 +54,26 @@ class FilmEintrag():
     def __init__(self, filmName: str) -> None:
         self.filmName = filmName                            # nur der FilmName mit Ext.
         self.fullName = os.path.join(QuellPfad, self.filmName)    # Voller Pfad & Name
-        self.filmExt = PurePath(self.filmName).suffix
+        ppFilm = Path(self.fullName)        
+        self.filmExt = ppFilm.suffix
         if os.path.exists(self.fullName):
-            self.filmBytes = os.path.getsize(self.fullName)
+            ppFilm_st = ppFilm.stat()
+            self.filmBytes = ppFilm_st.st_size
             self.filmBytesAnz = HumanBytes.format(self.filmBytes, True, 3)
+            self.filmModZeit = ppFilm_st.st_mtime
             self.filmStatus = "bereit"
         else:
             self.filmBytes = "-"
             self.filmStatus = "NOT FOUND"
             self.filmBytesAnz = ""
+            self.filmBytes = 0
+            self.filmModZeit = None
+
         self.filmFP = ""
         self.filmMD5 = ""
+        self.filmLen = 0
+        self.filmModZeit = None
+
 
 filmListe = list[FilmEintrag]
 
@@ -81,7 +91,7 @@ class Frm_Kopieren(QMainWindow, Ui_frm_Importer):
         self.btn_quelleSuchen.clicked.connect(self.quelleSuchen)
         self.ladeZielOrdner()
         self.zielOrdnerAnpassen()
-        self.ladeFilme(KONSTANTEN.default_Quelle)
+        self.ladeFilme(KONSTANTEN.default_Quelle)        
         self.cb_zielOrdner.currentTextChanged.connect(self.zielOrdnerAnpassen )
         self.btn_abbruch.clicked.connect(self.abbruch)
         self.btn_start.clicked.connect(self.start)
@@ -100,6 +110,11 @@ class Frm_Kopieren(QMainWindow, Ui_frm_Importer):
         self.tbl_filme.setColumnWidth(4, 50)        # Status
 
         self.tbl_filme.currentCellChanged.connect(self.filmLangNameAnzeigen)
+
+        if len(filmListe) == 0:
+            QMessageBox.about(self, "Ende der Verarbeitung", "Nichts zu tun!")
+            exit(0)
+
 
 
     def quelleSuchen(self):
@@ -153,7 +168,7 @@ class Frm_Kopieren(QMainWindow, Ui_frm_Importer):
         global stopFlag
 
         if self.btn_start.isEnabled():   
-            vidarchdb.dbClose()     
+            # vidarchdb.dbClose()     
             self.close()
         else:
             stopFlag = True
@@ -281,7 +296,14 @@ class Frm_Kopieren(QMainWindow, Ui_frm_Importer):
                 break
             else:
                 # den Film in der DB hinterlegen . . .
-                ret = vidarchdb.film_merken(zielPfadId, fobj.filmName, fobj.filmExt, fobj.filmMD5, verbose=False)
+                ret = vidarchdb.film_merken(zielPfadId, 
+                                            fobj.filmName, 
+                                            fobj.filmExt, 
+                                            fobj.filmMD5,
+                                            FP=fobj.filmFP,
+                                            Bytes=fobj.filmBytes,
+                                            ModZeit=fobj.filmModZeit,
+                                            verbose=False)
                 # ggf fehler in der Anlage verarbeiten
                 if ret.startswith("Err"):
                     if os.path.exists(zName):
@@ -290,7 +312,7 @@ class Frm_Kopieren(QMainWindow, Ui_frm_Importer):
                     self.tbl_filme.setItem(row, 4, QTableWidgetItem(fobj.filmStatus))
                     break
                 # end if ret.startswith   
-                                 
+                          
                 fobj.filmFP = fp
                 fobj.filmMD5 = md5
                 fobj.filmStatus = "OK"
@@ -319,10 +341,29 @@ class Frm_Kopieren(QMainWindow, Ui_frm_Importer):
 
         if stopFlag:
             stopFlag = False
-        self.le_quellOrdner.setEnabled(True)
-        self.cb_zielOrdner.setEnabled(True)
-        self.cb_verschiebeFilm.setEnabled(True)
-        self.btn_start.setEnabled(True)
+
+        print(row, len(filmListe))        
+        if row == len(filmListe):
+
+            with open(f"{KONSTANTEN.default_Ziel}\\Importer.csv", "a") as fex:
+                print("Importer Export vom " + datetime.now().strftime('%Y-%m-%d-%H:%M:%S'))
+                for row in filmListe:
+                    print(str(row.filmName + ";" + row.filmBytes) + ";" + str(row.filmModZeit) +\
+                              ";" + row.filmMD5 + ";" + row.filmFP + ";" + row.filmStatus, file=fex)
+
+            txt = f"Es wurden {row} Medien importiert!\n\n" +\
+                f"Die Liste wurde nach [{KONSTANTEN.default_Ziel}/Importer.csv] exportiert."
+            QMessageBox.about(self, "Ende der Verarbeitung", txt)
+
+            self.le_quellOrdner.setEnabled(False)
+            self.cb_zielOrdner.setEnabled(False)
+            self.cb_verschiebeFilm.setEnabled(False)
+            self.btn_start.setEnabled(False)
+        else:
+            self.le_quellOrdner.setEnabled(True)
+            self.cb_zielOrdner.setEnabled(True)
+            self.cb_verschiebeFilm.setEnabled(True)
+            self.btn_start.setEnabled(True)
         self.filmeAnzeigen()
         self.fortschrittAnzeigen(0) 
         return

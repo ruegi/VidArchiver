@@ -17,3 +17,5 @@ privat.py
 *.spec
 *.xcf
 .qt*
+*.alt
+

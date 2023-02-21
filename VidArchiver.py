@@ -1320,8 +1320,7 @@ def format_size(flen: int):
 
 if __name__ == '__main__':        
     app = QApplication(sys.argv)
-    form = VidArchiverApp(app)
-    vidarchdb.defineDBName(Konstanten.DBNAME)
+    form = VidArchiverApp(app)    
     vidarchdb.defineAlert(form.popupNachricht)
     form.show()    
     app.exec()
